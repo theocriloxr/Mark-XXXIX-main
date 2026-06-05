@@ -1279,7 +1279,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(_sec("COMMAND INPUT"))
         lay.addLayout(self._build_input_row())
 
-self._mute_btn = QPushButton("🎙  MICROPHONE ACTIVE")
+        self._mute_btn = QPushButton("🎙  MICROPHONE ACTIVE")
         self._mute_btn.setFixedHeight(30)
         self._mute_btn.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
         self._mute_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1429,7 +1429,7 @@ self._mute_btn = QPushButton("🎙  MICROPHONE ACTIVE")
         self.hud.state    = state
         self.hud.speaking = (state == "SPEAKING")
 
-    def _check_config(self) -> bool:
+def _check_config(self) -> bool:
         if not API_FILE.exists(): return False
         try:
             d = json.loads(API_FILE.read_text(encoding="utf-8"))
@@ -1437,7 +1437,7 @@ self._mute_btn = QPushButton("🎙  MICROPHONE ACTIVE")
         except Exception:
             return False
 
-def _show_setup(self):
+    def _show_setup(self):
         ov = SetupOverlay(self.centralWidget())
         cw = self.centralWidget()
         ow, oh = 460, 390
@@ -1491,6 +1491,7 @@ def _show_setup(self):
             # This is a placeholder for the callback functionality
         except Exception as e:
             self._log.append_log(f"SYS: Error restarting wake word. {e}")
+
 
 class _RootShim:
     def __init__(self, app: QApplication):
