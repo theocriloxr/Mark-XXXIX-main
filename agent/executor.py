@@ -282,6 +282,14 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
         from actions.money_maker import money_maker
         return money_maker(parameters=parameters, player=None) or "Done."
 
+    elif tool == "service_manager":
+        from actions.service_manager import service_manager
+        return service_manager(parameters=parameters, player=None) or "Done."
+
+    elif tool == "multi_agent":
+        from agent.multi_agent import multi_agent
+        return multi_agent(parameters=parameters, player=None) or "Done."
+
     else:
         print(f"[Executor] ⚠️ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)

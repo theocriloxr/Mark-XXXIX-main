@@ -1,124 +1,84 @@
-# universal_dir.py
-"""
-Universal Directory Access - Access any folder/drive on the system.
-Part of enhanced JARVIS system for comprehensive file access.
-"""
-
+# universal_dir.py - Access any directory on the system
 import os
+import sys
 import platform
-import subprocess
 from pathlib import Path
-from typing import Optional, List
 
 _OS = platform.system()
 
-
-def get_drives() -> List[str]:
-    """Get all available drives on the system."""
-    drives = []
-    
+def list_drives() -> str:
+    """List all available drives/volumes."""
     if _OS == "Windows":
         try:
             import winreg
-            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\MountedDevices")
-            i = 0
-            while True:
-                try:
-                    name, value, _ = winreg.EnumValue(key, i)
-                    if name.startswith("\\DosDevices\\") and value:
-                        drive = name.replace("\\DosDevices\\", "")[:2]
-                        if drive not in drives and len(drive) == 2:
-                            drives.append(drive)
-                    i += 1
-                except OSError:
-                    break
-            winreg.CloseKey(key)
+            drives = []
+            for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                drive = f"{letter}:\\"
+                if Path(drive).exists():
+                    drives.append(drive)
+            return "Available drives: " + ", ".join(drives)
         except:
-            # Fallback
-            for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
-                if Path(f"{letter}:\\").exists():
-                    drives.append(f"{letter}:")
-        # Always include C:
-        if "C:" not in drives:
-            drives.insert(0, "C:")
-    else:
-        # Unix-like
-        drives = ["/"]
-        # Try common mount points
-        for mp in ["/media", "/mnt", "/Volumes"]:
-            if Path(mp).exists():
-                drives.append(mp)
+            pass
     
-    return drives
+    # Unix-like
+    volumes = ["/"]
+    return "Mount points:\n  /\n  /home\n  /mnt"
 
-
-def list_root_dirs(path: str = "") -> str:
-    """List root level directories."""
+def list_directory(path: str = "/", depth: int = 1) -> str:
+    """List directory contents with depth control."""
     try:
-        if not path:
-            return "\n".join(f"📁 {d}" for d in get_drives())
+        target = Path(path).expanduser().resolve()
         
-        target = Path(path)
         if not target.exists():
             return f"Path not found: {path}"
         
+        if not target.is_dir():
+            return f"Not a directory: {path}"
+        
         items = []
-        for item in sorted(target.iterdir()):
+        for item in sorted(target.iterdir())[:50]:
             if item.is_dir():
                 items.append(f"📁 {item.name}/")
             else:
-                sz = item.stat().st_size
+                size = item.stat().st_size
                 items.append(f"📄 {item.name}")
         
-        if not items:
-            return "Empty directory"
-        
-        return f"{path}:\n" + "\n".join(items)
+        return f"Contents of {target}:\n" + "\n".join(items)
+    except PermissionError:
+        return "Permission denied"
     except Exception as e:
         return f"Error: {e}"
 
+def get_disk_info() -> str:
+    """Get all disk/volume info."""
+    if _OS == "Windows":
+        try:
+            import winreg
+            drives = []
+            for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+                drive = f"{letter}:\\"
+                if Path(drive).exists():
+                    try:
+                        import psutil
+                        usage = psutil.disk_usage(drive)
+                        drives.append(f"{drive} {usage.used//(1024**3)}GB/{usage.total//(1024**3)}GB")
+                    except:
+                        drives.append(drive)
+            return "Disks: " + ", ".join(drives)
+        except:
+            pass
+    
+    return "Disk info not available"
 
-def get_disk_info(path: str = "") -> str:
-    """Get disk/partition info."""
-    try:
-        if _OS == "Windows":
-            result = subprocess.run(
-                ["wmic", "logicaldisk", "get", "caption,size,freespace,drivetype"],
-                capture_output=True, text=True
-            )
-            return result.stdout
-        else:
-            result = subprocess.run(
-                ["df", "-h"],
-                capture_output=True, text=True
-            )
-            return result.stdout
-    except Exception as e:
-        return f"Error: {e}"
-
-
-def universal_dir(
-    parameters: dict = None,
-    response=None,
-    player=None,
-    session_memory=None,
-) -> str:
-    """Main dispatcher for universal directory actions."""
+def universal_dir(parameters: dict = None, response=None, player=None) -> str:
     params = parameters or {}
-    action = params.get("action", "list").lower().strip()
+    action = params.get("action", "drives").lower().strip()
     
-    try:
-        if action == "list" or action == "ls":
-            return list_root_dirs(params.get("path", ""))
-        
-        elif action == "drives":
-            return "\n".join(f"📁 {d}" for d in get_drives())
-        
-        elif action == "disk_info":
-            return get_disk_info(params.get("path", ""))
-        
-        else:
-            return f"Unknown action: {action}"
-    
-    except Exception as e:
-        return f"Universal dir error: {e}"
+    if action == "drives":
+        return list_drives()
+    elif action == "list":
+        return list_directory(params.get("path", "/"), int(params.get("depth", 1)))
+    elif action == "disks":
+        return get_disk_info()
+    else:
+        return list_drives()

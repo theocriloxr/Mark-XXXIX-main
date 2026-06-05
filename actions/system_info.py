@@ -1,120 +1,125 @@
 # system_info.py
 """
-System Info - Detailed system and hardware information.
-Part of enhanced JARVIS system.
+System Information Tool - Get detailed system hardware and software info.
 """
-
 import platform
 import subprocess
-import psutil
+import sys
 from pathlib import Path
 
+def get_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
 
 _OS = platform.system()
 
-
-def get_basic_info() -> str:
-    """Get basic system information."""
+def get_full_system_info() -> str:
+    """Get comprehensive system information."""
+    info = []
+    info.append("=== SYSTEM INFO ===")
+    info.append(f"OS: {platform.system()} {platform.release()}")
+    info.append(f"Version: {platform.version()}")
+    info.append(f"Machine: {platform.machine()}")
+    info.append(f"Processor: {platform.processor()}")
+    info.append(f"Hostname: {platform.node()}")
+    
+    # Hardware info
     try:
-        info = {
-            "System": platform.system(),
-            "Release": platform.release(),
-            "Version": platform.version(),
-            "Machine": platform.machine(),
-            "Processor": platform.processor(),
-            "hostname": platform.node(),
-        }
+        import psutil
+        info.append(f"\n=== HARDWARE ===")
+        info.append(f"CPU Cores: {psutil.cpu_count(logical=False)} physical, {psutil.cpu_count(logical=True)} logical")
+        
+        mem = psutil.virtual_memory()
+        info.append(f"RAM: {mem.total / (1024**3):.1f} GB total, {mem.available / (1024**3):.1f} GB available")
+        
+        disk = psutil.disk_usage('/')
+        info.append(f"Disk: {disk.total / (1024**3):.1f} GB total, {disk.free / (1024**3):.1f} GB free")
+    except:
+        pass
+    
+    # Network
+    try:
+        import socket
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        info.append(f"\n=== NETWORK ===")
+        info.append(f"Hostname: {hostname}")
+        info.append(f"IP Address: {ip}")
+    except:
+        pass
+    
+    return "\n".join(info)
+
+
+def get_hardware_info() -> str:
+    """Get detailed hardware info."""
+    try:
+        import psutil
+        lines = ["=== HARDWARE ==="]
         
         # CPU
-        info["CPU Cores"] = f"{psutil.cpu_count(logical=False)} physical, {psutil.cpu_count(logical=True)} logical"
+        cpu = psutil.cpu_freq()
+        lines.append(f"CPU: {psutil.cpu_count(logical=True)} cores")
+        if cpu:
+            lines.append(f"CPU Freq: {cpu.current:.0f} MHz")
         
         # Memory
         mem = psutil.virtual_memory()
-        info["RAM"] = f"{mem.total / (1024**3):.1f} GB ({mem.percent}% used)"
+        lines.append(f"RAM: {mem.total / (1024**3):.1f} GB ({mem.percent}% used)")
         
-        # Boot time
-        boot = psutil.boot_time()
-        import time
-        info["Boot Time"] = time.ctime(boot)
+        # Disk
+        for part in psutil.disk_partitions():
+            try:
+                usage = psutil.disk_usage(part.mountpoint)
+                lines.append(f"Disk {part.device}: {usage.total / (1024**3):.1f} GB")
+            except:
+                pass
         
-        lines = ["System Information:"]
-        for k, v in info.items():
-            lines.append(f"  {k}: {v}")
+        # Battery
+        try:
+            battery = psutil.sensors_battery()
+            if battery:
+                lines.append(f"Battery: {battery.percent}% ({'charging' if battery.power_plugged else 'discharging'})")
+        except:
+            pass
+        
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error getting hardware: {e}"
+
+
+def get_network_info() -> str:
+    """Get network information."""
+    try:
+        import socket
+        import psutil
+        
+        lines = ["=== NETWORK ==="]
+        lines.append(f"Hostname: {socket.gethostname()}")
+        
+        # Get IP addresses
+        interfaces = psutil.net_if_addrs()
+        for name, addrs in interfaces.items():
+            for addr in addrs:
+                if str(addr.family) == 'AddressFamily.AF_INET':
+                    lines.append(f"{name}: {addr.address}")
+        
         return "\n".join(lines)
     except Exception as e:
         return f"Error: {e}"
 
 
-def get_hardware_info() -> str:
-    """Get detailed hardware information."""
-    lines = ["Hardware Details:"]
-    
-    try:
-        if _OS == "Windows":
-            # GPU info via wmic
-            result = subprocess.run(
-                ["wmic", "path", "win32_VideoController", "get", "name"]
-            )
-            if result.returncode == 0:
-                lines.append(f"  GPU: {result.stdout.strip()}")
-        elif _OS == "Darwin":
-            # macOS hardware
-            result = subprocess.run(
-                ["system_profiler", "SPHardwareDataType"],
-                capture_output=True, text=True
-            )
-            if result.returncode == 0:
-                lines.append(result.stdout)
-    except:
-        pass
-    
-    # Try GPU temperature
-    try:
-        temps = psutil.sensors_temperatures()
-        if temps:
-            lines.append(f"  Temperature: {temps}")
-    except:
-        pass
-    
-    return "\n".join(lines)
-
-
-def get_network_info() -> str:
-    """Get network configuration."""
-    lines = ["Network:"]
-    
-    try:
-        # IP addresses
-        addrs = psutil.net_if_addrs()
-        for iface, addr_list in addrs.items():
-            for addr in addr_list:
-                if addr.family == 2:  # AF_INET
-                    lines.append(f"  {iface}: {addr.address}")
-    except Exception as e:
-        lines.append(f"  Error: {e}")
-    
-    return "\n".join(lines)
-
-
-def system_info(
-    parameters: dict = None,
-    response=None,
-    player=None,
-) -> str:
-    """Main dispatcher for system info actions."""
+def system_info(parameters: dict = None, response=None, player=None) -> str:
+    """Main dispatcher."""
     params = parameters or {}
-    action = params.get("action", "basic").lower().strip()
+    action = params.get("action", "info").lower().strip()
     
-    try:
-        if action == "basic":
-            return get_basic_info()
-        elif action == "hardware":
-            return get_hardware_info()
-        elif action == "network":
-            return get_network_info()
-        elif action == "all":
-            return get_basic_info() + "\n\n" + get_network_info()
-        else:
-            return f"Unknown action: {action}"
-    except Exception as e:
-        return f"System info error: {e}"
+    if action == "full":
+        return get_full_system_info()
+    elif action == "hardware":
+        return get_hardware_info()
+    elif action == "network":
+        return get_network_info()
+    else:
+        return get_full_system_info()

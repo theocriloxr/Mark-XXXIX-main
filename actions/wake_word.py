@@ -1,110 +1,104 @@
-# wake_word.py
-"""
-Wake Word Detection - Custom wake word with always-listening mode.
-Part of enhanced JARVIS system for hands-free activation.
-"""
-
+# wake_word.py - Custom wake word detection and always-listening mode
 import json
-from pathlib import Path
+import os
+import sys
 import threading
 import time
-import audioop
-import wave
+from pathlib import Path
+from datetime import datetime
 
-# Configuration storage
-_WAKE_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "wake_word.json"
+def get_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
 
-# Default wake word
-DEFAULT_WAKE_WORD = "jarvis"
+BASE_DIR = get_base_dir()
+CONFIG_PATH = BASE_DIR / "config" / "wakeword_config.json"
 
-# Current configuration
-_wake_config = {
+# Default wake word settings
+DEFAULT_CONFIG = {
     "enabled": True,
-    "wake_word": DEFAULT_WAKE_WORD,
-    "always_listen": False,
-    "sensitivity": 0.6
+    "wake_word": "jarvis",
+    "always_listening": True,
+    "sensitivity": 0.6,
+    "soundfeedback": True,
 }
 
+_config = {}
+_listening = False
+_callback = None
 
-def _load_config():
+def _load_config() -> dict:
     """Load wake word configuration."""
-    global _wake_config
-    try:
-        if _WAKE_CONFIG_PATH.exists():
-            _wake_config = json.loads(_WAKE_CONFIG_PATH.read_text())
-    except:
-        pass
+    global _config
+    if CONFIG_PATH.exists():
+        try:
+            _config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        except:
+            _config = dict(DEFAULT_CONFIG)
+    else:
+        _config = dict(DEFAULT_CONFIG)
+    return _config
 
-
-def _save_config():
+def _save_config(config: dict) -> None:
     """Save wake word configuration."""
-    try:
-        _WAKE_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _WAKE_CONFIG_PATH.write_text(json.dumps(_wake_config, indent=2))
-    except Exception as e:
-        print(f"[WakeWord] Config save error: {e}")
-
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
 def set_wake_word(word: str) -> str:
     """Set custom wake word."""
-    global _wake_config
-    _wake_config["wake_word"] = word.lower()
-    _save_config()
+    config = _load_config()
+    config["wake_word"] = word.lower().strip()
+    _save_config(config)
     return f"Wake word set to: {word}"
 
-
 def get_status() -> str:
-    """Get wake word status."""
-    _load_config()
+    """Get current wake word status."""
+    config = _load_config()
     return (
-        f"Wake Word: {_wake_config.get('wake_word', DEFAULT_WAKE_WORD)}\n"
-        f"Enabled: {_wake_config.get('enabled', True)}\n"
-        f"Always Listen: {_wake_config.get('always_listen', False)}"
+        f"Wake Word Status:\n"
+        f"  Wake Word: {config.get('wake_word', 'jarvis')}\n"
+        f"  Always Listening: {config.get('always_listening', True)}\n"
+        f"  Enabled: {config.get('enabled', True)}\n"
+        f"  Sensitivity: {config.get('sensitivity', 0.6)}"
     )
 
+def toggle_listening(enable: bool = True) -> str:
+    """Toggle always-listening mode."""
+    global _listening
+    config = _load_config()
+    config["always_listening"] = enable
+    _save_config(config)
+    _listening = enable
+    if enable:
+        return "Always-listening mode enabled. I'm always listening, sir."
+    return "Always-listening mode disabled."
 
-def enable_always_listen(enable: bool = True) -> str:
-    """Enable/disable always listening mode."""
-    global _wake_config
-    _wake_config["always_listen"] = enable
-    _save_config()
-    return f"Always listening: {'enabled' if enable else 'disabled'}"
+def set_callback(callback_func) -> None:
+    """Set callback for wake word detection."""
+    global _callback
+    _callback = callback_func
 
-
-def wake_word(
-    parameters: dict = None,
-    response=None,
-    player=None,
-) -> str:
-    """Main dispatcher for wake word actions."""
+def wake_word(parameters: dict = None, response=None, player=None) -> str:
+    """Main dispatcher."""
     params = parameters or {}
     action = params.get("action", "status").lower().strip()
     
-    try:
-        if action == "set":
-            return set_wake_word(params.get("word", "jarvis"))
-        
-        elif action == "status":
-            return get_status()
-        
-        elif action == "always_on":
-            return enable_always_listen(True)
-        
-        elif action == "always_off":
-            return enable_always_listen(False)
-        
-        elif action == "enable":
-            _wake_config["enabled"] = True
-            _save_config()
-            return "Wake word enabled."
-        
-        elif action == "disable":
-            _wake_config["enabled"] = False
-            _save_config()
-            return "Wake word disabled."
-        
-        else:
-            return f"Unknown action: {action}"
+    config = _load_config()
     
-    except Exception as e:
-        return f"Wake word error: {e}"
+    if action == "set":
+        return set_wake_word(params.get("word", "jarvis"))
+    elif action == "status":
+        return get_status()
+    elif action == "listen":
+        return toggle_listening(params.get("enable", True))
+    elif action == "enable":
+        config["enabled"] = True
+        _save_config(config)
+        return "Wake word enabled."
+    elif action == "disable":
+        config["enabled"] = False
+        _save_config(config)
+        return "Wake word disabled."
+    else:
+        return get_status()
