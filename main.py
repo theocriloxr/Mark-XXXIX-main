@@ -448,7 +448,7 @@ TOOL_DECLARATIONS = [
         "required": []
     }
 },
-    {
+{
         "name": "save_memory",
         "description": (
             "Save an important personal fact about the user to long-term memory. "
@@ -476,6 +476,133 @@ TOOL_DECLARATIONS = [
                 "value": {"type": "STRING", "description": "Concise value in English (e.g. Fatih, pizza, older sister)"},
             },
             "required": ["category", "key", "value"]
+        }
+    },
+    {
+        "name": "process_manager",
+        "description": "Manage running processes: list, kill, get info. Use for viewing processes, terminating apps, system monitoring.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "list | kill | info | stats (default: list)"},
+                "pid":    {"type": "INTEGER", "description": "Process ID to kill or get info"},
+                "name":  {"type": "STRING", "description": "Process name to search or kill"},
+                "max_count": {"type": "INTEGER", "description": "Max processes to list (default: 50)"},
+                "search": {"type": "STRING", "description": "Filter processes by name"},
+                "force": {"type": "BOOLEAN", "description": "Force kill (default: false)"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "system_info",
+        "description": "Get detailed system information: hardware, OS, battery, network. Use for system diagnostics.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "hardware | os | battery | network | all (default: all)"},
+                "detail": {"type": "STRING", "description": "Specific detail to get"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "network_tools",
+        "description": "Network diagnostics: ping, port check, IP lookup, DNS, connections.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "ping | port | ip | dns | connections"},
+                "host":  {"type": "STRING", "description": "Host for ping/port check"},
+                "port":  {"type": "INTEGER", "description": "Port number to check"},
+                "domain": {"type": "STRING", "description": "Domain for DNS lookup"}
+            },
+            "required": ["action"]
+        }
+    },
+    {
+        "name": "clipboard_manager",
+        "description": "Enhanced clipboard with history and search. Store and retrieve clipboard items.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "set | get | search | history | clear"},
+                "text":  {"type": "STRING", "description": "Text to set in clipboard"},
+                "query": {"type": "STRING", "description": "Search query for clipboard history"},
+                "label": {"type": "STRING", "description": "Label for saved clipboard item"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "app_installer",
+        "description": "Install or uninstall applications. Supports winget, pip, brew, npm.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "install | uninstall | list | search"},
+                "app_name": {"type": "STRING", "description": "App name to install/uninstall"},
+                "source": {"type": "STRING", "description": "Source: winget | pip | brew | npm (default: winget)"},
+                "category": {"type": "STRING", "description": "Filter by category for list"}
+            },
+            "required": ["action"]
+        }
+    },
+    {
+        "name": "universal_dir",
+        "description": "Access ANY folder/drive on the system. Navigate full filesystem beyond home directory.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "drives | list | info | navigate | find"},
+                "path":   {"type": "STRING", "description": "Path to list or navigate to"},
+                "show_hidden": {"type": "BOOLEAN", "description": "Show hidden files (default: false)"},
+                "pattern": {"type": "STRING", "description": "Search pattern for find action"},
+                "max_results": {"type": "INTEGER", "description": "Max results (default: 20)"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "self_updater",
+        "description": "JARVIS self-update system. Check for updates, auto-update, rollback.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "check | update | rollback | version"},
+                "target_version": {"type": "STRING", "description": "Target version for rollback"},
+                "auto_confirm": {"type": "BOOLEAN", "description": "Auto-confirm update (default: false)"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "wake_word",
+        "description": "Configure or check wake word for always-listening mode. Set custom wake word.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "set | get | enable | disable | status"},
+                "word": {"type": "STRING", "description": "Custom wake word (e.g. JARVIS, Hey AI)"},
+                "mode": {"type": "STRING", "description": "Listening mode: active | passive"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "multi_agent",
+        "description": "Multi-agent coordination system. Create and manage specialized sub-agents.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "create | list | assign | status | stop"},
+                "agent_type": {"type": "STRING", "description": "research | code | file | system | network | custom"},
+                "task": {"type": "STRING", "description": "Task to assign to agent"},
+                "agent_name": {"type": "STRING", "description": "Name for custom agent"},
+                "description": {"type": "STRING", "description": "Description for custom agent"},
+                "capabilities": {"type": "STRING", "description": "Comma-separated capabilities"}
+            },
+            "required": []
         }
     },
 ]
@@ -669,7 +796,7 @@ class JarvisLive:
                 r = await loop.run_in_executor(None, lambda: game_updater(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Done."
 
-            elif name == "flight_finder":
+elif name == "flight_finder":
                 r = await loop.run_in_executor(None, lambda: flight_finder(parameters=args, player=self.ui))
                 result = r or "Done."
 
@@ -681,6 +808,51 @@ class JarvisLive:
                     time.sleep(1)
                     os._exit(0)
                 threading.Thread(target=_shutdown, daemon=True).start()
+
+            elif name == "process_manager":
+                from actions.process_manager import process_manager as pm
+                r = await loop.run_in_executor(None, lambda: pm(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "system_info":
+                from actions.system_info import system_info as si
+                r = await loop.run_in_executor(None, lambda: si(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "network_tools":
+                from actions.network_tools import network_tools as nt
+                r = await loop.run_in_executor(None, lambda: nt(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "clipboard_manager":
+                from actions.clipboard_manager import clipboard_manager as cm
+                r = await loop.run_in_executor(None, lambda: cm(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "app_installer":
+                from actions.app_installer import app_installer as ai
+                r = await loop.run_in_executor(None, lambda: ai(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "universal_dir":
+                from actions.universal_dir import universal_dir as ud
+                r = await loop.run_in_executor(None, lambda: ud(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "self_updater":
+                from actions.self_updater import self_updater as su
+                r = await loop.run_in_executor(None, lambda: su(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "wake_word":
+                from actions.wake_word import wake_word as ww
+                r = await loop.run_in_executor(None, lambda: ww(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "multi_agent":
+                from agent.multi_agent import multi_agent as ma
+                r = await loop.run_in_executor(None, lambda: ma(parameters=args, player=self.ui))
+                result = r or "Done."
 
             else:
                 result = f"Unknown tool: {name}"
