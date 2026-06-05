@@ -622,7 +622,7 @@ TOOL_DECLARATIONS = [
             "required": ["action"]
         }
     },
-    {
+{
         "name": "backup_tool",
         "description": "Backup and restore directories. Create and manage backups of important folders.",
         "parameters": {
@@ -634,6 +634,17 @@ TOOL_DECLARATIONS = [
                 "destination": {"type": "STRING", "description": "Restore destination"}
             },
             "required": ["action"]
+        }
+    },
+    {
+        "name": "tray_icon",
+        "description": "System tray icon control. Start/stop the system tray icon for background operation without terminal.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "start | stop | status (default: status)"}
+            },
+            "required": []
         }
     },
 ]
@@ -884,6 +895,11 @@ class JarvisLive:
             elif name == "multi_agent":
                 from agent.multi_agent import multi_agent as ma
                 r = await loop.run_in_executor(None, lambda: ma(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "tray_icon":
+                from actions.tray_icon import tray_icon as ti
+                r = await loop.run_in_executor(None, lambda: ti(parameters=args, player=self.ui))
                 result = r or "Done."
 
             else:
