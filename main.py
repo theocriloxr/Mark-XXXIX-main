@@ -441,14 +441,13 @@ TOOL_DECLARATIONS = [
             "column":    {"type": "STRING",  "description": "Column name for CSV filter/sort"},
             "value":     {"type": "STRING",  "description": "Filter value for CSV filter"},
             "condition": {"type": "STRING",  "description": "Filter condition: equals|contains|gt|lt"},
-            "ascending": {"type": "BOOLEAN", "description": "Sort order for CSV sort (default: true)"},
+"ascending": {"type": "BOOLEAN", "description": "Sort order for CSV sort (default: true)"},
             "save":      {"type": "BOOLEAN", "description": "Save result to file (default: true)"},
             "destination": {"type": "STRING", "description": "Output folder for archive extract"},
         },
         "required": []
-    }
-},
-{
+    },
+    {
         "name": "save_memory",
         "description": (
             "Save an important personal fact about the user to long-term memory. "
@@ -779,7 +778,7 @@ class JarvisLive:
             elif name == "web_search":
                 r = await loop.run_in_executor(None, lambda: web_search_action(parameters=args, player=self.ui))
                 result = r or "Done."
-            elif name == "file_processor":
+elif name == "file_processor":
                 if not args.get("file_path") and self.ui.current_file:
                     args["file_path"] = self.ui.current_file
                 r = await loop.run_in_executor(
@@ -796,7 +795,7 @@ class JarvisLive:
                 r = await loop.run_in_executor(None, lambda: game_updater(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Done."
 
-elif name == "flight_finder":
+            elif name == "flight_finder":
                 r = await loop.run_in_executor(None, lambda: flight_finder(parameters=args, player=self.ui))
                 result = r or "Done."
 
