@@ -532,7 +532,7 @@ def code_helper(
     language    = p.get("language", "python").strip()
     output_path = p.get("output_path", "").strip()
     file_path   = p.get("file_path", "").strip()
-code        = p.get("code", "").strip()
+    code        = p.get("code", "").strip()
     args        = p.get("args", [])
     timeout     = int(p.get("timeout", 30))
 
