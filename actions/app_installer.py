@@ -1,125 +1,122 @@
 # app_installer.py
 """
-App Installer - Install/uninstall applications via winget, pip, brew, npm
+App Installer - Install/uninstall applications.
+Part of enhanced JARVIS system for software management.
 """
 
-import subprocess
+import os
 import sys
+import platform
+import subprocess
 from pathlib import Path
 
-def _get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
 
-BASE_DIR = _get_base_dir()
+_OS = platform.system()
 
-def _run_command(cmd: list) -> tuple:
+
+def install_package(package: str) -> str:
+    """Install a package via pip or system package manager."""
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        return result.returncode, result.stdout, result.stderr
+        # Try pip first
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", package],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        
+        if result.returncode == 0:
+            return f"Installed: {package}"
+        
+        # Try system package manager
+        if _OS == "windows":
+            # Try winget
+            result = subprocess.run(
+                ["winget", "install", "--id", package, "-e", "--accept-source-agreements", "--accept-package-agreements"],
+                capture_output=True,
+                text=True,
+                timeout=180
+            )
+        elif _OS == "darwin":
+            result = subprocess.run(
+                ["brew", "install", package],
+                capture_output=True,
+                text=True,
+                timeout=180
+            )
+        else:
+            # Linux
+            result = subprocess.run(
+                ["sudo", "apt-get", "install", "-y", package],
+                capture_output=True,
+                text=True,
+                timeout=180
+            )
+        
+        if result.returncode == 0:
+            return f"Installed: {package}"
+        
+        return f"Failed: {result.stderr}"
     except Exception as e:
-        return -1, "", str(e)
+        return f"Install error: {e}"
 
-def install_app(app_name: str, source: str = "winget") -> str:
-    source = source.lower()
-    
-    if source == "pip":
-        cmd = [sys.executable, "-m", "pip", "install", app_name]
-    elif source == "npm":
-        cmd = ["npm", "install", "-g", app_name]
-    elif source == "brew":
-        cmd = ["brew", "install", app_name]
-    elif source == "winget":
-        cmd = ["winget", "install", "--id", app_name, "--silent", "--accept-package-agreements"]
-    else:
-        return f"Unknown source: {source}"
-    
-    code, out, err = _run_command(cmd)
-    if code == 0:
-        return f"Installed: {app_name}"
-    return f"Failed: {err[:100]}"
 
-def uninstall_app(app_name: str, source: str = "winget") -> str:
-    source = source.lower()
-    
-    if source == "pip":
-        cmd = [sys.executable, "-m", "pip", "uninstall", app_name, "-y"]
-    elif source == "npm":
-        cmd = ["npm", "uninstall", "-g", app_name]
-    elif source == "brew":
-        cmd = ["brew", "uninstall", app_name]
-    elif source == "winget":
-        cmd = ["winget", "uninstall", "--id", app_name, "--silent"]
-    else:
-        return f"Unknown source: {source}"
-    
-    code, out, err = _run_command(cmd)
-    if code == 0:
-        return f"Uninstalled: {app_name}"
-    return f"Failed: {err[:100]}"
+def uninstall_package(package: str) -> str:
+    """Uninstall a package."""
+    try:
+        # Try pip first
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "uninstall", package, "-y"],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        if result.returncode == 0:
+            return f"Uninstalled: {package}"
+        
+        return f"Uninstalled from pip."
+    except Exception as e:
+        return f"Uninstall error: {e}"
 
-def list_apps(source: str = "pip") -> str:
-    source = source.lower()
-    
-    if source == "pip":
-        cmd = [sys.executable, "-m", "pip", "list"]
-    elif source == "npm":
-        cmd = ["npm", "list", "-g", "--depth=0"]
-    elif source == "brew":
-        cmd = ["brew", "list"]
-    else:
-        return f"Unknown source: {source}"
-    
-    code, out, err = _run_command(cmd)
-    if code == 0:
-        lines = out.strip().split("\n")[:20]
-        return f"{source.upper()} packages:\n" + "\n".join(lines)
-    return f"Error: {err[:100]}"
 
-def search_app(app_name: str, source: str = "pip") -> str:
-    source = source.lower()
-    
-    if source == "pip":
-        cmd = [sys.executable, "-m", "pip", "search", app_name]
-    elif source == "npm":
-        cmd = ["npm", "search", app_name]
-    else:
-        return f"Search not supported for: {source}"
-    
-    code, out, err = _run_command(cmd)
-    if code == 0:
-        lines = out.strip().split("\n")[:10]
-        return "\n".join(lines)
-    return f"Error: {err[:100]}"
+def list_installed() -> str:
+    """List installed packages."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "list"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        lines = result.stdout.strip().split("\n")[:20]
+        return "Installed packages:\n" + "\n".join(lines)
+    except Exception as e:
+        return f"List error: {e}"
 
-def app_installer(parameters: dict = None, player=None) -> str:
+
+def app_installer(
+    parameters: dict = None,
+    response=None,
+    player=None,
+) -> str:
+    """Main dispatcher for app installer."""
     params = parameters or {}
     action = params.get("action", "list").lower().strip()
-    app_name = params.get("app_name", "").strip()
-    source = params.get("source", "winget").strip()
     
     try:
         if action == "install":
-            if not app_name:
-                return "Specify app_name."
-            return install_app(app_name, source)
+            return install_package(params.get("package", ""))
         
         elif action == "uninstall":
-            if not app_name:
-                return "Specify app_name."
-            return uninstall_app(app_name, source)
+            return uninstall_package(params.get("package", ""))
         
         elif action == "list":
-            return list_apps(source)
-        
-        elif action == "search":
-            if not app_name:
-                return "Specify app_name."
-            return search_app(app_name, source)
+            return list_installed()
         
         else:
             return f"Unknown action: {action}"
     
     except Exception as e:
-        return f"Error: {e}"
+        return f"App installer error: {e}"

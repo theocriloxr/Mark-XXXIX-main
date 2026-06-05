@@ -1,44 +1,64 @@
 # network_tools.py
 """
-Network Tools - IP, ping, connections, network diagnostics
+Network Tools - Network diagnostics and utilities.
+Part of enhanced JARVIS system.
 """
 
+import platform
 import subprocess
 import socket
-import platform
-import sys
+import requests
 from pathlib import Path
-import json
+
 
 _OS = platform.system()
 
-def _run_cmd(cmd: list) -> str:
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-        return result.stdout.strip() if result.stdout else result.stderr.strip()
-    except Exception as e:
-        return str(e)
 
-def get_ip_address(internal: bool = True) -> str:
+def get_local_ip() -> str:
+    """Get local IP address."""
     try:
-        if internal:
-            hostname = socket.gethostname()
-            ip = socket.gethostbyname(hostname)
-            return f"Internal IP: {ip}"
-        
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
-        return f"External IP: {ip}"
-    except Exception as e:
-        return f"Error: {e}"
+        return ip
+    except Exception:
+        return "Unknown"
+
+
+def get_public_ip() -> str:
+    """Get public IP address."""
+    try:
+        return requests.get("https://api.ipify.org", timeout=5).text
+    except Exception:
+        return "Unknown"
+
 
 def ping_host(host: str = "google.com", count: int = 4) -> str:
-    cmd = ["ping", "-c", str(count), host] if _OS != "Windows" else ["ping", "-n", str(count), host]
-    return _run_cmd(cmd)
+    """Ping a host."""
+    try:
+        if _OS == "Windows":
+            result = subprocess.run(
+                ["ping", "-n", str(count), host],
+                capture_output=True, text=True, timeout=30
+            )
+        else:
+            result = subprocess.run(
+                ["ping", "-c", str(count), host],
+                capture_output=True, text=True, timeout=30
+            )
+        
+        if result.returncode == 0:
+            # Extract timing
+            lines = result.stdout.split("\n")
+            return "\n".join(lines[:count+1])
+        return f"Ping failed: {host}"
+    except Exception as e:
+        return f"Ping error: {e}"
+
 
 def check_port(host: str, port: int) -> str:
+    """Check if a port is open."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(3)
@@ -49,93 +69,42 @@ def check_port(host: str, port: int) -> str:
             return f"Port {port} on {host} is OPEN"
         return f"Port {port} on {host} is CLOSED"
     except Exception as e:
-        return f"Error: {e}"
+        return f"Port check error: {e}"
 
-def get_connections() -> str:
-    if _OS == "Windows":
-        result = _run_cmd(["netstat", "-ano"])
-        lines = result.split("\n")[:30]
-        return "Active connections:\n" + "\n".join(lines)
-    
-    elif _OS == "Darwin":
-        result = _run_cmd(["netstat", "-an"])
-        lines = result.split("\n")[:30]
-        return "Active connections:\n" + "\n".join(lines)
-    
-    else:
-        result = _run_cmd(["ss", "-tunap"])
-        lines = result.split("\n")[:30]
-        return "Active connections:\n" + "\n".join(lines)
 
-def get_dns() -> str:
-    if _OS == "Windows":
-        result = _run_cmd(["ipconfig", "/all"])
-        for line in result.split("\n"):
-            if "DNS" in line:
-                return line.strip()
-        return "DNS servers not found"
-    
-    elif _OS == "Darwin":
-        result = _run_cmd(["scutil", "--dns"])
-        return result[:500]
-    
-    else:
-        result = _run_cmd(["cat", "/etc/resolv.conf"])
-        return result[:300]
-
-def get_gateway() -> str:
-    if _OS == "Windows":
-        result = _run_cmd(["ipconfig"])
-        for line in result.split("\n"):
-            if "Default Gateway" in line:
-                return line.strip()
-        return "Gateway not found"
-    
-    elif _OS == "Darwin":
-        result = _run_cmd(["netstat", "-nr"])
-        for line in result.split("\n"):
-            if "default" in line.lower():
-                return line.strip()
-        return "Gateway not found"
-    
-    else:
-        result = _run_cmd(["ip", "route"])
-        for line in result.split("\n"):
-            if "default" in line:
-                return line.strip()
-        return "Gateway not found"
-
-def network_tools(parameters: dict = None, player=None) -> str:
+def network_tools(
+    parameters: dict = None,
+    response=None,
+    player=None,
+) -> str:
+    """Main dispatcher for network tools."""
     params = parameters or {}
-    action = params.get("action", "ip").lower().strip()
-    host = params.get("host", "").strip()
-    port = params.get("port", 80)
+    action = params.get("action", "local_ip").lower().strip()
     
     try:
-        if action == "ip":
-            return get_ip_address(internal=params.get("internal", True))
+        if action == "local_ip":
+            return f"Local IP: {get_local_ip()}"
+        
+        elif action == "public_ip":
+            return f"Public IP: {get_public_ip()}"
         
         elif action == "ping":
-            if not host:
-                host = "google.com"
-            return ping_host(host, int(params.get("count", 4)))
+            return ping_host(
+                params.get("host", "google.com"),
+                int(params.get("count", 4))
+            )
         
         elif action == "check_port":
-            if not host:
-                return "Specify host."
-            return check_port(host, int(port))
+            return check_port(
+                params.get("host", "localhost"),
+                int(params.get("port", 80))
+            )
         
-        elif action == "connections":
-            return get_connections()
-        
-        elif action == "dns":
-            return get_dns()
-        
-        elif action == "gateway":
-            return get_gateway()
+        elif action == "all":
+            return f"Local: {get_local_ip()} | Public: {get_public_ip()}"
         
         else:
             return f"Unknown action: {action}"
     
     except Exception as e:
-        return f"Error: {e}"
+        return f"Network tools error: {e}"

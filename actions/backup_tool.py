@@ -1,123 +1,119 @@
 # backup_tool.py
 """
-Backup Tool - Directory backup and restore
+Backup Tool - Directory backup and restore.
+Part of enhanced JARVIS system for data safety.
 """
 
-import shutil
-import time
-from pathlib import Path, PureWindowsPath
-import sys
-import platform
-import json
 import os
+import sys
+import shutil
+import json
+from pathlib import Path
+from datetime import datetime
+import difflib
 
-def _get_base_dir() -> Path:
+
+def get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent
     return Path(__file__).resolve().parent.parent
 
-BASE_DIR = _get_base_dir()
+
+BASE_DIR = get_base_dir()
 BACKUP_DIR = BASE_DIR / "backups"
-BACKUP_DIR.mkdir(exist_ok=True)
 
-_OS = platform.system()
 
-def backup_directory(source: str, backup_name: str = "") -> str:
-    src = Path(source)
-    if not src.exists():
-        return f"Source not found: {source}"
-    
-    if not backup_name:
-        backup_name = f"{src.name}_{int(time.time())}"
-    
-    dest = BACKUP_DIR / backup_name
-    
+def create_backup(source: str, name: str = "") -> str:
+    """Create a backup of a directory."""
     try:
+        src = Path(source).expanduser().resolve()
+        if not src.exists():
+            return f"Source not found: {source}"
+        
+        if not name:
+            name = src.name + "_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        dest = BACKUP_DIR / name
+        
         if src.is_dir():
-            shutil.copytree(src, dest, dirs_exist_ok=True)
+            shutil.copytree(src, dest, ignore=shutil.ignore_patterns("*.pyc", "__pycache__", ".git", "venv"))
         else:
-            dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dest)
         
-        size = sum(f.stat().st_size for f in dest.rglob("*") if f.is_file())
-        size_mb = size / 1024 / 1024
-        return f"Backed up: {source} -> {backup_name} ({size_mb:.1f} MB)"
+        return f"Backup created: {name}"
     except Exception as e:
-        return f"Backup failed: {e}"
+        return f"Backup error: {e}"
 
-def restore_backup(backup_name: str, dest: str) -> str:
-    src = BACKUP_DIR / backup_name
-    if not src.exists():
-        return f"Backup not found: {backup_name}"
-    
-    try:
-        dst = Path(dest)
-        if src.is_dir():
-            shutil.copytree(src, dst, dirs_exist_ok=True)
-        else:
-            shutil.copy2(src, dst)
-        return f"Restored: {backup_name} -> {dest}"
-    except Exception as e:
-        return f"Restore failed: {e}"
 
 def list_backups() -> str:
+    """List all backups."""
     if not BACKUP_DIR.exists():
         return "No backups yet."
     
-    items = []
-    for item in sorted(BACKUP_DIR.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True):
-        if item.is_dir():
-            size = sum(f.stat().st_size for f in item.rglob("*") if f.is_file())
-            items.append(f"  {item.name} ({size/1024/1024:.1f} MB)")
-        else:
-            items.append(f"  {item.name} ({item.stat().st_size/1024:.1f} KB)")
-    
-    if not items:
+    backups = sorted(BACKUP_DIR.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True)
+    if not backups:
         return "No backups found."
-    return "Available backups:\n" + "\n".join(items)
-
-def delete_backup(backup_name: str) -> str:
-    src = BACKUP_DIR / backup_name
-    if not src.exists():
-        return f"Backup not found: {backup_name}"
     
-    try:
-        if src.is_dir():
-            shutil.rmtree(src)
+    lines = ["Available backups:"]
+    for b in backups[:20]:
+        size = b.stat().st_size
+        if size > 1024*1024:
+            size_str = f"{size/1024/1024:.1f} MB"
         else:
-            src.unlink()
-        return f"Deleted: {backup_name}"
-    except Exception as e:
-        return f"Delete failed: {e}"
+            size_str = f"{size/1024:.1f} KB"
+        lines.append(f"  {b.name} ({size_str})")
+    
+    return "\n".join(lines)
 
-def backup_tool(parameters: dict = None, player=None) -> str:
+
+def restore_backup(name: str, destination: str = "") -> str:
+    """Restore a backup."""
+    try:
+        backup = BACKUP_DIR / name
+        if not backup.exists():
+            return f"Backup not found: {name}"
+        
+        if not destination:
+            destination = str(backup.parent.parent / ("restored_" + name))
+        
+        if backup.is_dir():
+            shutil.copytree(backup, destination, dirs_exist_ok=True)
+        else:
+            shutil.copy2(backup, destination)
+        
+        return f"Restored to: {destination}"
+    except Exception as e:
+        return f"Restore error: {e}"
+
+
+def backup_tool(
+    parameters: dict = None,
+    response=None,
+    player=None,
+) -> str:
+    """Main dispatcher for backup tool."""
     params = parameters or {}
     action = params.get("action", "list").lower().strip()
-    source = params.get("source", "").strip()
-    backup_name = params.get("backup_name", "").strip()
-    dest = params.get("destination", "").strip()
     
     try:
-        if action == "backup":
-            if not source:
-                return "Specify source directory."
-            return backup_directory(source, backup_name)
-        
-        elif action == "restore":
-            if not backup_name or not dest:
-                return "Specify backup_name and destination."
-            return restore_backup(backup_name, dest)
+        if action == "create":
+            return create_backup(
+                params.get("source", ""),
+                params.get("name", "")
+            )
         
         elif action == "list":
             return list_backups()
         
-        elif action == "delete":
-            if not backup_name:
-                return "Specify backup_name."
-            return delete_backup(backup_name)
+        elif action == "restore":
+            return restore_backup(
+                params.get("name", ""),
+                params.get("destination", "")
+            )
         
         else:
             return f"Unknown action: {action}"
     
     except Exception as e:
-        return f"Error: {e}"
+        return f"Backup tool error: {e}"

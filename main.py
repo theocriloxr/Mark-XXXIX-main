@@ -31,6 +31,15 @@ from actions.dev_agent         import dev_agent
 from actions.web_search        import web_search as web_search_action
 from actions.computer_control  import computer_control
 from actions.game_updater      import game_updater
+from actions.process_manager    import process_manager
+from actions.system_info       import system_info
+from actions.network_tools    import network_tools
+from actions.clipboard_manager import clipboard_manager
+from actions.wake_word         import wake_word
+from actions.money_maker      import money_maker
+from actions.backup_tool      import backup_tool
+from actions.self_updater     import self_updater
+from actions.universal_dir    import universal_dir
 
 
 def get_base_dir():
@@ -437,11 +446,11 @@ TOOL_DECLARATIONS = [
             "quality":   {"type": "INTEGER", "description": "Quality 1-100 for image/video compress"},
             "start":     {"type": "STRING",  "description": "Start time for trim: seconds or HH:MM:SS"},
             "end":       {"type": "STRING",  "description": "End time for trim: seconds or HH:MM:SS"},
-            "timestamp": {"type": "STRING",  "description": "Timestamp for video frame extraction HH:MM:SS"},
+"timestamp": {"type": "STRING",  "description": "Timestamp for video frame extraction HH:MM:SS"},
             "column":    {"type": "STRING",  "description": "Column name for CSV filter/sort"},
             "value":     {"type": "STRING",  "description": "Filter value for CSV filter"},
-            "condition": {"type": "STRING",  "description": "Filter condition: equals|contains|gt|lt"},
-"ascending": {"type": "BOOLEAN", "description": "Sort order for CSV sort (default: true)"},
+            "condition": {"type": "STRING", "description": "Filter condition: equals|contains|gt|lt"},
+            "ascending": {"type": "BOOLEAN", "description": "Sort order for CSV sort (default: true)"},
             "save":      {"type": "BOOLEAN", "description": "Save result to file (default: true)"},
             "destination": {"type": "STRING", "description": "Output folder for archive extract"},
         },
@@ -588,7 +597,7 @@ TOOL_DECLARATIONS = [
             "required": []
         }
     },
-    {
+{
         "name": "multi_agent",
         "description": "Multi-agent coordination system. Create and manage specialized sub-agents.",
         "parameters": {
@@ -602,6 +611,37 @@ TOOL_DECLARATIONS = [
                 "capabilities": {"type": "STRING", "description": "Comma-separated capabilities"}
             },
             "required": []
+        }
+    },
+    {
+        "name": "money_maker",
+        "description": "Income/expense tracking, invoicing, job search. Financial and career assistant.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "track_income | track_expense | invoice | jobs | summary | analyze"},
+                "source": {"type": "STRING", "description": "Income source (e.g. freelance, salary)"},
+                "amount": {"type": "NUMBER", "description": "Amount in local currency"},
+                "description": {"type": "STRING", "description": "Description for income/expense"},
+                "category": {"type": "STRING", "description": "Category (food, tech, travel, etc.)"},
+                "keywords": {"type": "STRING", "description": "Job search keywords"},
+                "platform": {"type": "STRING", "description": "Platform: linkedin | indeed | upwork | all"}
+            },
+            "required": ["action"]
+        }
+    },
+    {
+        "name": "backup_tool",
+        "description": "Backup and restore directories. Create and manage backups of important folders.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "create | list | restore | delete"},
+                "source": {"type": "STRING", "description": "Source directory to backup"},
+                "name": {"type": "STRING", "description": "Backup name"},
+                "destination": {"type": "STRING", "description": "Restore destination"}
+            },
+            "required": ["action"]
         }
     },
 ]
@@ -772,13 +812,14 @@ class JarvisLive:
                 from agent.task_queue import get_queue, TaskPriority
                 priority_map = {"low": TaskPriority.LOW, "normal": TaskPriority.NORMAL, "high": TaskPriority.HIGH}
                 priority = priority_map.get(args.get("priority", "normal").lower(), TaskPriority.NORMAL)
-                task_id  = get_queue().submit(goal=args.get("goal", ""), priority=priority, speak=self.speak)
+task_id  = get_queue().submit(goal=args.get("goal", ""), priority=priority, speak=self.speak)
                 result   = f"Task started (ID: {task_id})."
 
             elif name == "web_search":
                 r = await loop.run_in_executor(None, lambda: web_search_action(parameters=args, player=self.ui))
                 result = r or "Done."
-elif name == "file_processor":
+
+            elif name == "file_processor":
                 if not args.get("file_path") and self.ui.current_file:
                     args["file_path"] = self.ui.current_file
                 r = await loop.run_in_executor(

@@ -242,6 +242,46 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
         from actions.flight_finder import flight_finder
         return flight_finder(parameters=parameters, player=None, speak=speak) or "Done."
 
+    elif tool == "process_manager":
+        from actions.process_manager import process_manager
+        return process_manager(parameters=parameters, player=None) or "Done."
+
+    elif tool == "system_info":
+        from actions.system_info import system_info
+        return system_info(parameters=parameters, player=None) or "Done."
+
+    elif tool == "network_tools":
+        from actions.network_tools import network_tools
+        return network_tools(parameters=parameters, player=None) or "Done."
+
+    elif tool == "clipboard_manager":
+        from actions.clipboard_manager import clipboard_manager
+        return clipboard_manager(parameters=parameters, player=None) or "Done."
+
+    elif tool == "app_installer":
+        from actions.app_installer import app_installer
+        return app_installer(parameters=parameters, player=None) or "Done."
+
+    elif tool == "universal_dir":
+        from actions.universal_dir import universal_dir
+        return universal_dir(parameters=parameters, player=None) or "Done."
+
+    elif tool == "backup_tool":
+        from actions.backup_tool import backup_tool
+        return backup_tool(parameters=parameters, player=None) or "Done."
+
+    elif tool == "self_updater":
+        from actions.self_updater import self_updater
+        return self_updater(parameters=parameters, player=None) or "Done."
+
+    elif tool == "wake_word":
+        from actions.wake_word import wake_word
+        return wake_word(parameters=parameters, player=None) or "Done."
+
+    elif tool == "money_maker":
+        from actions.money_maker import money_maker
+        return money_maker(parameters=parameters, player=None) or "Done."
+
     else:
         print(f"[Executor] ⚠️ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)
