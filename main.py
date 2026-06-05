@@ -807,9 +807,62 @@ class JarvisLive:
                 r = await loop.run_in_executor(None, lambda: code_helper(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Done."
 
-            elif name == "dev_agent":
-                r = await loop.run_in_executor(None, lambda: dev_agent(parameters=args, player=self.ui, speak=self.speak))
-                result = r or "Done."
+elif name == "dev_agent":
+                # Use subprocess to run dev_agent in separate process (Supervisor-Worker pattern)
+                # This prevents blocking the WebSocket heartbeat
+                import subprocess
+                import uuid
+                import tempfile
+                
+                task_id = str(uuid.uuid4())[:8]
+                task_file = BASE_DIR / "worker_task.json"
+                result_file = BASE_DIR / "worker_result.json"
+                
+                # Write task to JSON file
+                task_data = {
+                    "description": args.get("description", ""),
+                    "language": args.get("language", "python"),
+                    "project_name": args.get("project_name", ""),
+                    "timeout": args.get("timeout", 30)
+                }
+                with open(task_file, "w") as f:
+                    json.dump(task_data, f)
+                
+                # Run worker in subprocess
+                worker_script = BASE_DIR / "worker_dev_agent.py"
+                try:
+                    self.ui.write_log(f"[DevAgent] Starting worker {task_id}...")
+                    proc = subprocess.Popen(
+                        [sys.executable, str(worker_script), 
+                         "--task_file", str(task_file),
+                         "--result_file", str(result_file)],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        cwd=str(BASE_DIR)
+                    )
+                    
+                    # Wait for result with timeout
+                    try:
+                        stdout, stderr = proc.communicate(timeout=args.get("timeout", 30) * 3)
+                        if proc.returncode == 0:
+                            # Read result file
+                            if result_file.exists():
+                                with open(result_file, "r") as f:
+                                    result_data = json.load(f)
+                                result = result_data.get("result", "Done.")
+                                if result_data.get("error"):
+                                    result += f"\nError: {result_data['error']}"
+                            else:
+                                result = "Done."
+                        else:
+                            result = f"Worker failed: {stderr.decode('utf-8', errors='replace')[:200]}"
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        result = f"Task timed out, sir. Check the worker logs."
+                        self.ui.write_log(f"[DevAgent] ⚠️ Task {task_id} timed out")
+                except Exception as e:
+                    result = f"Failed to start worker: {e}"
+                    self.ui.write_log(f"[DevAgent] ❌ {e}")
 
             elif name == "agent_task":
                 from agent.task_queue import get_queue, TaskPriority
