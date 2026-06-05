@@ -34,6 +34,13 @@ from actions.game_updater import game_updater
 from actions.ujo_network import ujo_network
 from actions.signal_rank_bridge import signal_rank_bridge
 
+# Import bridge schemas for strict LLM tool calling
+from actions.tool_schemas import (
+    UJO_NETWORK_SCHEMA,
+    SIGNAL_RANK_SCHEMA,
+    BRIDGE_TOOL_SCHEMAS,
+)
+
 
 def get_base_dir():
     if getattr(sys, "frozen", False):

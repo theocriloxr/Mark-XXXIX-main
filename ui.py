@@ -1279,13 +1279,29 @@ class MainWindow(QMainWindow):
         lay.addWidget(_sec("COMMAND INPUT"))
         lay.addLayout(self._build_input_row())
 
-        self._mute_btn = QPushButton("🎙  MICROPHONE ACTIVE")
+self._mute_btn = QPushButton("🎙  MICROPHONE ACTIVE")
         self._mute_btn.setFixedHeight(30)
         self._mute_btn.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
         self._mute_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._mute_btn.clicked.connect(self._toggle_mute)
         self._style_mute_btn()
         lay.addWidget(self._mute_btn)
+
+        settings_btn = QPushButton("⚙  SETTINGS")
+        settings_btn.setFixedHeight(26)
+        settings_btn.setFont(QFont("Courier New", 7))
+        settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        settings_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent; color: #5ab8cc;
+                border: 1px solid #0d3347; border-radius: 3px;
+            }
+            QPushButton:hover {
+                color: #00d4ff; border: 1px solid #1a5c7a;
+            }
+        """)
+        settings_btn.clicked.connect(self._open_settings)
+        lay.addWidget(settings_btn)
 
         fs_btn = QPushButton("⛶  FULLSCREEN  [F11]")
         fs_btn.setFixedHeight(26)
@@ -1421,7 +1437,7 @@ class MainWindow(QMainWindow):
         except Exception:
             return False
 
-    def _show_setup(self):
+def _show_setup(self):
         ov = SetupOverlay(self.centralWidget())
         cw = self.centralWidget()
         ow, oh = 460, 390
@@ -1446,6 +1462,35 @@ class MainWindow(QMainWindow):
             self._overlay = None
         self._apply_state("LISTENING")
         self._log.append_log(f"SYS: Initialised. OS={os_name.upper()}. JARVIS online.")
+
+    def _open_settings(self):
+        """Open the settings dialog to configure JARVIS."""
+        try:
+            from ui_settings import SettingsDialog
+            from core.config_manager import config
+            from actions.wake_word import WakeWordListener
+            
+            # Create and show the settings dialog
+            dialog = SettingsDialog(self, restart_wake_word_callback=self._restart_wake_word_listener)
+            dialog.exec()
+        except ImportError as e:
+            self._log.append_log(f"SYS: Settings module not found. {e}")
+        except Exception as e:
+            self._log.append_log(f"SYS: Error opening settings. {e}")
+
+    def _restart_wake_word_listener(self, new_wake_word: str):
+        """Safely restart the wake word listener with a new wake word."""
+        try:
+            from actions.wake_word import set_wake_word, start_listener
+            
+            # Update the wake word
+            set_wake_word(new_wake_word)
+            self._log.append_log(f"SYS: Wake word updated to '{new_wake_word}'")
+            
+            # Note: Full restart requires the listener thread to be managed externally
+            # This is a placeholder for the callback functionality
+        except Exception as e:
+            self._log.append_log(f"SYS: Error restarting wake word. {e}")
 
 class _RootShim:
     def __init__(self, app: QApplication):
