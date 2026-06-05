@@ -31,6 +31,8 @@ from actions.dev_agent import dev_agent
 from actions.web_search import web_search as web_search_action
 from actions.computer_control import computer_control
 from actions.game_updater import game_updater
+from actions.ujo_network import ujo_network
+from actions.signal_rank_bridge import signal_rank_bridge
 
 
 def get_base_dir():
@@ -636,7 +638,7 @@ TOOL_DECLARATIONS = [
             "required": ["action"]
         }
     },
-    {
+{
         "name": "tray_icon",
         "description": "System tray icon control. Start/stop the system tray icon for background operation without terminal.",
         "parameters": {
@@ -645,6 +647,33 @@ TOOL_DECLARATIONS = [
                 "action": {"type": "STRING", "description": "start | stop | status (default: status)"}
             },
             "required": []
+        }
+    },
+    {
+        "name": "ujo_network",
+        "description": "Route system-level tasks to Ujo daemon (nervous system). Use for Docker, OS hooks, cross-device execution.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "docker_deploy | fs_manipulation | remote_exec | status"},
+                "target": {"type": "STRING", "description": "Target node: local | macbook-pro | aws-server"},
+                "command": {"type": "STRING", "description": "Command to execute"},
+                "payload": {"type": "STRING", "description": "Additional parameters as JSON string"}
+            },
+            "required": ["action"]
+        }
+    },
+    {
+        "name": "signal_rank_bridge",
+        "description": "Query SignalRankAI (trading brain) for portfolio, market analysis, and trading intelligence.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "query": {"type": "STRING", "description": "portfolio_status | market_analysis | active_signals | risk_check"},
+                "symbols": {"type": "STRING", "description": "Comma-separated ticker symbols (e.g. AAPL,MSFT)"},
+                "timeframe": {"type": "STRING", "description": "1h | 1d | 1w | 1m"}
+            },
+            "required": ["query"]
         }
     },
 ]
@@ -807,7 +836,7 @@ class JarvisLive:
                 r = await loop.run_in_executor(None, lambda: code_helper(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Done."
 
-elif name == "dev_agent":
+            elif name == "dev_agent":
                 # Use subprocess to run dev_agent in separate process (Supervisor-Worker pattern)
                 # This prevents blocking the WebSocket heartbeat
                 import subprocess
@@ -954,6 +983,14 @@ elif name == "dev_agent":
                 from actions.tray_icon import tray_icon as ti
                 r = await loop.run_in_executor(None, lambda: ti(parameters=args, player=self.ui))
                 result = r or "Done."
+
+            elif name == "ujo_network":
+                r = await loop.run_in_executor(None, lambda: ujo_network(parameters=args, player=self.ui))
+                result = r or "Ujo daemon routing complete."
+
+            elif name == "signal_rank_bridge":
+                r = await loop.run_in_executor(None, lambda: signal_rank_bridge(parameters=args, player=self.ui))
+                result = r or "SignalRankAI query complete."
 
             else:
                 result = f"Unknown tool: {name}"
