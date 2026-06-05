@@ -15,31 +15,22 @@ from memory.memory_manager import (
 )
 
 from actions.file_processor import file_processor
-from actions.flight_finder     import flight_finder
-from actions.open_app          import open_app
-from actions.weather_report    import weather_action
-from actions.send_message      import send_message
-from actions.reminder          import reminder
+from actions.flight_finder import flight_finder
+from actions.open_app import open_app
+from actions.weather_report import weather_action
+from actions.send_message import send_message
+from actions.reminder import reminder
 from actions.computer_settings import computer_settings
-from actions.screen_processor  import screen_process
-from actions.youtube_video     import youtube_video
-from actions.desktop           import desktop_control
-from actions.browser_control   import browser_control
-from actions.file_controller   import file_controller
-from actions.code_helper       import code_helper
-from actions.dev_agent         import dev_agent
-from actions.web_search        import web_search as web_search_action
-from actions.computer_control  import computer_control
-from actions.game_updater      import game_updater
-from actions.process_manager    import process_manager
-from actions.system_info       import system_info
-from actions.network_tools    import network_tools
-from actions.clipboard_manager import clipboard_manager
-from actions.wake_word         import wake_word
-from actions.money_maker      import money_maker
-from actions.backup_tool      import backup_tool
-from actions.self_updater     import self_updater
-from actions.universal_dir    import universal_dir
+from actions.screen_processor import screen_process
+from actions.youtube_video import youtube_video
+from actions.desktop import desktop_control
+from actions.browser_control import browser_control
+from actions.file_controller import file_controller
+from actions.code_helper import code_helper
+from actions.dev_agent import dev_agent
+from actions.web_search import web_search as web_search_action
+from actions.computer_control import computer_control
+from actions.game_updater import game_updater
 
 
 def get_base_dir():
@@ -392,69 +383,70 @@ TOOL_DECLARATIONS = [
         }
     },
     {
-    "name": "file_processor",
-    "description": (
-        "Processes any file that the user has uploaded or dropped onto the interface. "
-        "Use this when the user refers to an uploaded file and wants an action on it. "
-        "Supports: images (describe/ocr/resize/compress/convert), "
-        "PDFs (summarize/extract_text/to_word), "
-        "Word docs & text files (summarize/fix/reformat/translate), "
-        "CSV/Excel (analyze/stats/filter/sort/convert), "
-        "JSON/XML (validate/format/analyze), "
-        "code files (explain/review/fix/optimize/run/document/test), "
-        "audio (transcribe/trim/convert/info), "
-        "video (trim/extract_audio/extract_frame/compress/transcribe/info), "
-        "archives (list/extract), "
-        "presentations (summarize/extract_text). "
-        "ALWAYS call this tool when a file has been uploaded and the user gives a command about it. "
-        "If the user's command is ambiguous, pick the most logical action for that file type."
-    ),
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "file_path": {
-                "type": "STRING",
-                "description": "Full path to the uploaded file. Leave empty to use the currently uploaded file."
+        "name": "file_processor",
+        "description": (
+            "Processes any file that the user has uploaded or dropped onto the interface. "
+            "Use this when the user refers to an uploaded file and wants an action on it. "
+            "Supports: images (describe/ocr/resize/compress/convert), "
+            "PDFs (summarize/extract_text/to_word), "
+            "Word docs & text files (summarize/fix/reformat/translate), "
+            "CSV/Excel (analyze/stats/filter/sort/convert), "
+            "JSON/XML (validate/format/analyze), "
+            "code files (explain/review/fix/optimize/run/document/test), "
+            "audio (transcribe/trim/convert/info), "
+            "video (trim/extract_audio/extract_frame/compress/transcribe/info), "
+            "archives (list/extract), "
+            "presentations (summarize/extract_text). "
+            "ALWAYS call this tool when a file has been uploaded and the user gives a command about it. "
+            "If the user's command is ambiguous, pick the most logical action for that file type."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "file_path": {
+                    "type": "STRING",
+                    "description": "Full path to the uploaded file. Leave empty to use the currently uploaded file."
+                },
+                "action": {
+                    "type": "STRING",
+                    "description": (
+                        "What to do with the file. Examples by type:\n"
+                        "image: describe | ocr | resize | compress | convert | info\n"
+                        "pdf: summarize | extract_text | to_word | info\n"
+                        "docx/txt: summarize | fix | reformat | translate_hint | word_count | to_bullet\n"
+                        "csv/excel: analyze | stats | filter | sort | convert | info\n"
+                        "json: validate | format | analyze | to_csv\n"
+                        "code: explain | review | fix | optimize | run | document | test\n"
+                        "audio: transcribe | trim | convert | info\n"
+                        "video: trim | extract_audio | extract_frame | compress | transcribe | info | convert\n"
+                        "archive: list | extract\n"
+                        "pptx: summarize | extract_text | analyze"
+                    )
+                },
+                "instruction": {
+                    "type": "STRING",
+                    "description": "Free-form instruction if action doesn't cover it. E.g. 'translate this to Turkish', 'find all email addresses'"
+                },
+                "format": {
+                    "type": "STRING",
+                    "description": "Target format for conversion. E.g. 'mp3', 'pdf', 'csv', 'png'"
+                },
+                "width":     {"type": "INTEGER", "description": "Target width for image resize"},
+                "height":    {"type": "INTEGER", "description": "Target height for image resize"},
+                "scale":     {"type": "NUMBER",  "description": "Scale factor for image resize (e.g. 0.5)"},
+                "quality":   {"type": "INTEGER", "description": "Quality 1-100 for image/video compress"},
+                "start":     {"type": "STRING",  "description": "Start time for trim: seconds or HH:MM:SS"},
+                "end":       {"type": "STRING",  "description": "End time for trim: seconds or HH:MM:SS"},
+                "timestamp": {"type": "STRING",  "description": "Timestamp for video frame extraction HH:MM:SS"},
+                "column":    {"type": "STRING",  "description": "Column name for CSV filter/sort"},
+                "value":     {"type": "STRING",  "description": "Filter value for CSV filter"},
+                "condition": {"type": "STRING", "description": "Filter condition: equals|contains|gt|lt"},
+                "ascending": {"type": "BOOLEAN", "description": "Sort order for CSV sort (default: true)"},
+                "save":      {"type": "BOOLEAN", "description": "Save result to file (default: true)"},
+                "destination": {"type": "STRING", "description": "Output folder for archive extract"},
             },
-            "action": {
-                "type": "STRING",
-                "description": (
-                    "What to do with the file. Examples by type:\n"
-                    "image: describe | ocr | resize | compress | convert | info\n"
-                    "pdf: summarize | extract_text | to_word | info\n"
-                    "docx/txt: summarize | fix | reformat | translate_hint | word_count | to_bullet\n"
-                    "csv/excel: analyze | stats | filter | sort | convert | info\n"
-                    "json: validate | format | analyze | to_csv\n"
-                    "code: explain | review | fix | optimize | run | document | test\n"
-                    "audio: transcribe | trim | convert | info\n"
-                    "video: trim | extract_audio | extract_frame | compress | transcribe | info | convert\n"
-                    "archive: list | extract\n"
-                    "pptx: summarize | extract_text | analyze"
-                )
-            },
-            "instruction": {
-                "type": "STRING",
-                "description": "Free-form instruction if action doesn't cover it. E.g. 'translate this to Turkish', 'find all email addresses'"
-            },
-            "format": {
-                "type": "STRING",
-                "description": "Target format for conversion. E.g. 'mp3', 'pdf', 'csv', 'png'"
-            },
-            "width":     {"type": "INTEGER", "description": "Target width for image resize"},
-            "height":    {"type": "INTEGER", "description": "Target height for image resize"},
-            "scale":     {"type": "NUMBER",  "description": "Scale factor for image resize (e.g. 0.5)"},
-            "quality":   {"type": "INTEGER", "description": "Quality 1-100 for image/video compress"},
-            "start":     {"type": "STRING",  "description": "Start time for trim: seconds or HH:MM:SS"},
-            "end":       {"type": "STRING",  "description": "End time for trim: seconds or HH:MM:SS"},
-"timestamp": {"type": "STRING",  "description": "Timestamp for video frame extraction HH:MM:SS"},
-            "column":    {"type": "STRING",  "description": "Column name for CSV filter/sort"},
-            "value":     {"type": "STRING",  "description": "Filter value for CSV filter"},
-            "condition": {"type": "STRING", "description": "Filter condition: equals|contains|gt|lt"},
-            "ascending": {"type": "BOOLEAN", "description": "Sort order for CSV sort (default: true)"},
-            "save":      {"type": "BOOLEAN", "description": "Save result to file (default: true)"},
-            "destination": {"type": "STRING", "description": "Output folder for archive extract"},
-        },
-        "required": []
+            "required": []
+        }
     },
     {
         "name": "save_memory",
@@ -812,7 +804,7 @@ class JarvisLive:
                 from agent.task_queue import get_queue, TaskPriority
                 priority_map = {"low": TaskPriority.LOW, "normal": TaskPriority.NORMAL, "high": TaskPriority.HIGH}
                 priority = priority_map.get(args.get("priority", "normal").lower(), TaskPriority.NORMAL)
-task_id  = get_queue().submit(goal=args.get("goal", ""), priority=priority, speak=self.speak)
+                task_id  = get_queue().submit(goal=args.get("goal", ""), priority=priority, speak=self.speak)
                 result   = f"Task started (ID: {task_id})."
 
             elif name == "web_search":

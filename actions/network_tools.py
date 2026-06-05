@@ -1,57 +1,53 @@
-# network_tools.py - Network diagnostic and utility tools
+# network_tools.py
+"""
+Network Tools - Network diagnostics, ping, port check, IP lookup, DNS.
+Part of enhanced JARVIS system.
+"""
+
+import platform
 import subprocess
 import socket
-import platform
 import requests
-import json
-import sys
 from pathlib import Path
+import sys
 
-def get_base_dir() -> Path:
+def _get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent
     return Path(__file__).resolve().parent.parent
 
-_OS = platform.system().lower()
+BASE_DIR = _get_base_dir()
 
-def check_ping(host: str = "google.com", count: int = 4) -> str:
-    """Ping a host."""
+
+def ping_host(host: str, count: int = 4) -> str:
+    """Ping a host and return results."""
+    param = "-n" if platform.system() == "Windows" else "-c"
+    timeout_param = "-w" if platform.system() == "Windows" else "-W"
+    
     try:
-        p = "-n" if _OS == "windows" else "-c"
         result = subprocess.run(
-            ["ping", p, str(count), host],
-            capture_output=True, text=True, timeout=15
+            ["ping", param, str(count), timeout_param, "5", host],
+            capture_output=True, text=True, timeout=30
         )
+        
         if result.returncode == 0:
-            return f"Ping to {host}: Success\n{result.stdout[:500]}"
-        return f"Ping failed: {result.stderr[:200]}"
+            # Parse output for stats
+            output = result.stdout
+            if "Average" in output:
+                import re
+                avg_match = re.search(r"Average = (\d+)ms", output)
+                if avg_match:
+                    return f"Ping to {host}: OK - Avg response: {avg_match.group(1)}ms"
+            return f"Ping to {host}: Success\n{output[:300]}"
+        return f"Ping to {host}: Failed\n{result.stderr}"
+    except subprocess.TimeoutExpired:
+        return f"Ping to {host}: Timed out"
     except Exception as e:
         return f"Ping error: {e}"
 
-def get_ip_info() -> str:
-    """Get public and local IP info."""
-    lines = ["=== NETWORK INFO ==="]
-    
-    # Local IP
-    try:
-        hostname = socket.gethostname()
-        local_ip = socket.gethostbyname(hostname)
-        lines.append(f"Local IP: {local_ip}")
-        lines.append(f"Hostname: {hostname}")
-    except:
-        lines.append("Local IP: Unable to determine")
-    
-    # Public IP
-    try:
-        public_ip = requests.get("https://api.ipify.org?format=txt", timeout=5).text.strip()
-        lines.append(f"Public IP: {public_ip}")
-    except:
-        lines.append("Public IP: Unable to determine")
-    
-    return "\n".join(lines)
 
 def check_port(host: str, port: int) -> str:
-    """Check if a port is open."""
+    """Check if a port is open on a host."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(3)
@@ -61,35 +57,101 @@ def check_port(host: str, port: int) -> str:
         if result == 0:
             return f"Port {port} on {host}: OPEN"
         return f"Port {port} on {host}: CLOSED"
+    except socket.gaierror:
+        return f"Could not resolve {host}"
     except Exception as e:
         return f"Port check error: {e}"
 
-def get_connections() -> str:
-    """List active network connections."""
+
+def get_local_ip() -> str:
+    """Get local IP address."""
     try:
-        import psutil
-        lines = ["=== ACTIVE CONNECTIONS ==="]
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception:
+        return "Unknown"
+
+
+def get_public_ip() -> str:
+    """Get public IP address."""
+    try:
+        response = requests.get("https://api.ipify.org", timeout=5)
+        return response.text
+    except Exception as e:
+        return f"Unable to get public IP: {e}"
+
+
+def dns_lookup(domain: str) -> str:
+    """Perform DNS lookup for a domain."""
+    try:
+        ip = socket.gethostbyname(domain)
+        return f"{domain} -> {ip}"
+    except socket.gaierror as e:
+        return f"DNS lookup failed: {e}"
+    except Exception as e:
+        return f"DNS error: {e}"
+
+
+def get_connections() -> str:
+    """Get active network connections."""
+    import psutil
+    try:
+        connections = psutil.net_connections()
+        established = [c for c in connections if c.status == "ESTABLISHED"]
         
-        for conn in psutil.net_connections(kind='inet')[:20]:
-            if conn.status == 'ESTABLISHED':
-                lines.append(f"{conn.laddr.ip}:{conn.laddr.port} <-> {conn.raddr.ip}:{conn.raddr.port} [{conn.status}]")
+        lines = [f"Active connections: {len(established)}"]
+        for conn in established[:10]:
+            try:
+                laddr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "?"
+                raddr = f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else "?"
+                lines.append(f"  {conn.status}: {laddr} -> {raddr}")
+            except:
+                pass
         
         return "\n".join(lines)
     except Exception as e:
-        return f"Error: {e}"
+        return f"Connections error: {e}"
 
-def network_tools(parameters: dict = None, response=None, player=None) -> str:
-    """Main dispatcher."""
+
+def network_tools(
+    parameters: dict = None,
+    response=None,
+    player=None,
+    session_memory=None,
+) -> str:
+    """Main dispatcher for network tools."""
     params = parameters or {}
-    action = params.get("action", "info").lower().strip()
+    action = params.get("action", "").lower().strip()
+    host = params.get("host", "")
+    port = params.get("port", 0)
+    domain = params.get("domain", "")
     
-    if action == "ping":
-        return check_ping(params.get("host", "google.com"), int(params.get("count", 4)))
-    elif action == "ip":
-        return get_ip_info()
-    elif action == "port":
-        return check_port(params.get("host", "google.com"), int(params.get("port", 80)))
-    elif action == "connections":
-        return get_connections()
-    else:
-        return get_ip_info()
+    if player:
+        player.write_log(f"[network] {action}")
+    
+    try:
+        if action == "ping":
+            if not host:
+                return "Please specify host to ping"
+            return ping_host(host)
+        elif action == "port":
+            if not host or not port:
+                return "Please specify host and port"
+            return check_port(host, int(port))
+        elif action == "ip":
+            local = get_local_ip()
+            public = get_public_ip()
+            return f"Local IP: {local}\nPublic IP: {public}"
+        elif action == "dns":
+            if not domain:
+                return "Please specify domain"
+            return dns_lookup(domain)
+        elif action == "connections":
+            return get_connections()
+        else:
+            return f"Unknown action: {action}"
+    except Exception as e:
+        return f"Network tools error: {e}"
