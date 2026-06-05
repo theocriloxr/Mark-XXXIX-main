@@ -1,4 +1,4 @@
-﻿sounddevice
+﻿﻿sounddevice
 google-genai
 pillow
 requests
@@ -21,3 +21,10 @@ youtube-transcript-api
 pywinauto
 python-pptx
 pyqt6
+
+# Wake Word Dependencies (optional - for always-listening mode)
+openwakeword
+pyaudio
+
+# System Tray (optional - alternative to pystray below)
+# pystray  # Already implemented in actions/tray_icon.py
