@@ -1,0 +1,37 @@
+# Jarvis Self-Improvement and Capability Documentation
+
+This document outlines the current capabilities of the Jarvis system and details the comprehensive self-improvement plan and architectural enhancements initiated on June 5, 2026, aimed at transforming Jarvis into a highly autonomous, self-healing, and dynamically updating OS-level AI.
+
+---
+
+## 1. Current System Capabilities
+
+Jarvis possesses a broad spectrum of functionalities spanning critical domains:
+
+| Category | Capabilities | Tools Used |
+| :--- | :--- | :--- |
+| **System Control** | Manage volume, brightness, screen capture, process management, system information, network diagnostics, and computer settings. | `computer_settings`, `computer_control`, `screen_process`, `process_manager`, `system_info`, `network_tools` |
+| **File Management** | Create, read, write, move, copy, delete, organize, and find files and folders across the filesystem. Backup and restore critical directories. | `file_controller`, `universal_dir`, `backup_tool` |
+| **Web & Browser** | Search the web, navigate URLs, control multiple browsers (Chrome, Edge, Firefox), manage tabs, perform smart interactions, and execute complex browsing tasks. | `web_search`, `browser_control` |
+| **Development** | Write, edit, explain, run, debug, and optimize code. Build complete multi-file projects and manage application installation via package managers (winget, pip). | `code_helper`, `dev_agent`, `app_installer` |
+| **Communication** | Send messages via platforms like WhatsApp and Telegram, set timed reminders, and manage clipboard history. | `send_message`, `reminder`, `clipboard_manager` |
+| **Financial & Productivity** | Track income and expenses, generate invoices, search for jobs, and perform complex multi-step research and organization tasks. | `money_maker`, `agent_task` |
+| **Multimedia** | Play and control YouTube videos, transcribe audio, summarize PDFs and documents, edit images, and process various file types. | `youtube_video`, `file_processor` |
+
+---
+
+## 2. Implemented Self-Improvement Plan (Architectural Shift)
+
+The ongoing high-priority `agent_task` focuses on a significant architectural pivot to enhance robustness, safety, and autonomy, moving from a terminal application to a perpetual, self-evolving background service.
+
+### A. Self-Healing and Safety Guardrails
+*   **Code Validation (`ast.parse`):** Implemented mandatory syntax checking using Python's `ast` module within `self_updater` and `code_helper`. Jarvis will now automatically validate proposed code modifications before saving, explicitly rejecting and attempting to correct invalid syntax to prevent self-corruption and execution errors (the "Self-Healing" loop).
+*   **Version Control (Rollbacks):** Integrated a robust rollback mechanism. If a self-update leads to a runtime crash or critical error, the system will automatically revert to the last stable working state, ensuring continuous operation.
+*   **Watchdog System:** Development of a dedicated `watchdog.py` script to monitor the main Jarvis process. The Watchdog ensures system persistence by automatically detecting crashes and initiating restarts, functioning as the foundation of a resilient system.
+
+### B. Architectural Redesign (OS-Level Integration)
+*   **Daemon (Core):** Transitioning the core logic to run as a hidden background service (`pythonw.exe` or equivalent Windows Service via NSSM), logging activity without requiring an open terminal window.
+*   **Listener (Wake Word):** Integration of a low-latency, low-power Wake Word Engine (e.g., PicoVoice Porcupine or local VAD) to enable "Always-On" passive listening, consuming minimal CPU until triggered by the wake word.
+*   **UI (System Tray):** Development of a System Tray application using `pystray`, replacing the console interface. This UI provides essential controls for monitoring status, viewing logs, and managing (Restart/Shutdown) the background Daemon.
+
+This comprehensive upgrade path ensures Jarvis evolves into a safe, robust, and truly autonomous system capable of continuous adaptation and self-improvement without compromising operational stability.

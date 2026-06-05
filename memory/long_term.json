@@ -13,6 +13,10 @@
     "smart_room_system": {
       "value": "User is developing a smart room system and wants to integrate the assistant as the 'brain' to improve and combine with the project.",
       "updated": "2026-06-05"
+    },
+    "JARVIS_SelfImprovement_path": {
+      "value": "C:\\Users\\sammm\\Desktop\\JarvisProjects\\JARVIS_SelfImprovement",
+      "updated": "2026-06-05"
     }
   },
   "relationships": {},
