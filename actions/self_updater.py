@@ -4,12 +4,22 @@ Self-Updater - JARVIS can update its own code and self-modify.
 Enables auto-update capabilities for continuous improvement.
 """
 
+import ast
 import json
 import sys
 import shutil
 import platform
 from pathlib import Path
 from datetime import datetime
+
+
+def validate_code(content: str) -> bool:
+    """Returns True if code is valid Python syntax, False otherwise."""
+    try:
+        ast.parse(content)
+        return True
+    except SyntaxError:
+        return False
 
 
 def _get_base_dir() -> Path:
@@ -75,7 +85,13 @@ def read_code_file(path: str) -> str:
 
 
 def write_code_file(path: str, content: str, backup: bool = True) -> str:
-    """Write/update a code file."""
+    """Write/update a code file with syntax validation."""
+    # Validate Python syntax before saving
+    if path.endswith(".py"):
+        if not validate_code(content):
+            _log_update("write", path, "rejected - invalid syntax")
+            return f"Error: Refusing to save {path} - invalid Python syntax. Validation failed."
+    
     try:
         target = BASE_DIR / path
         if backup and target.exists():

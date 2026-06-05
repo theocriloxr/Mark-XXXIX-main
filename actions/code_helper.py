@@ -536,9 +536,14 @@ def code_helper(
     args        = p.get("args", [])
     timeout     = int(p.get("timeout", 30))
 
-    if action == "auto":
+if action == "auto":
         action = _detect_intent(description, file_path, code)
         print(f"[Code] 🤖 Auto-detected: {action}")
+
+    # Map "fix" action to "edit" for backward compatibility
+    if action == "fix":
+        action = "edit"
+        print(f"[Code] 🔧 Mapped 'fix' to 'edit'")
 
     if action == "write":
         return _write_action(description, language, output_path, player)
