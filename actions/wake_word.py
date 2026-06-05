@@ -1,209 +1,82 @@
 # wake_word.py
 """
-Wake Word System - Custom wake word detection with always-listening mode.
-Enhanced JARVIS system for voice activation control.
+Wake Word Configuration - Always listening mode and custom wake word.
 """
 
 import json
-import threading
-import time
 import sys
 from pathlib import Path
-from datetime import datetime
-from typing import Optional, Callable
+from threading import Lock
+
 
 def _get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent
     return Path(__file__).resolve().parent.parent
 
+
 BASE_DIR = _get_base_dir()
-CONFIG_FILE = BASE_DIR / "config" / "wake_config.json"
+CONFIG_FILE = BASE_DIR / "config" / "wake_word.json"
+_lock = Lock()
 
-# Default wake words - user can customize
-DEFAULT_WAKE_WORDS = ["hey jarvis", "okay jarvis", "jarvis"]
-
-# Current wake word configuration
-_wake_word_config = {
-    "enabled": True,
-    "wake_words": DEFAULT_WAKE_WORDS,
-    "always_listen": False,  # Enable always-listening mode
-    "sensitivity": 0.8,
-    "timeout_seconds": 30,  # Timeout for continuous listening
-}
-
-# State
-_is_listening = False
-_last_wake_time = 0
-_wake_event: Optional[threading.Event] = None
-_listen_callback: Optional[Callable] = None
+# Default wake word
+DEFAULT_WAKE_WORD = "jarvis"
 
 
 def _load_config() -> dict:
     """Load wake word configuration."""
-    global _wake_word_config
-    
-    if CONFIG_FILE.exists():
-        try:
-            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-            _wake_word_config.update(data)
-        except:
-            pass
-    
-    return _wake_word_config
+    if not CONFIG_FILE.exists():
+        return {"enabled": True, "word": DEFAULT_WAKE_WORD, "mode": "active"}
+    try:
+        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except:
+        return {"enabled": True, "word": DEFAULT_WAKE_WORD, "mode": "active"}
 
 
-def _save_config() -> None:
+def _save_config(config: dict) -> None:
     """Save wake word configuration."""
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(
-        json.dumps(_wake_word_config, indent=2, ensure_ascii=False),
-        encoding="utf-8"
-    )
+    with _lock:
+        CONFIG_FILE.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
 
-def set_wake_word(wake_word: str) -> str:
+def set_wake_word(word: str) -> str:
     """Set custom wake word."""
-    global _wake_word_config
-    
-    # Clean and validate
-    word = wake_word.lower().strip()
-    
-    if len(word) < 2:
-        return "Wake word too short (minimum 2 characters)"
-    
-    if len(word) > 20:
-        return "Wake word too long (maximum 20 characters)"
-    
-    # Add to wake words list
-    if word not in _wake_word_config["wake_words"]:
-        _wake_word_config["wake_words"].append(word)
-    
-    _save_config()
-    
-    return f"Wake word set to: '{word}'"
+    config = _load_config()
+    config["word"] = word.lower().strip()
+    _save_config(config)
+    return f"Wake word set to: {word}"
 
 
-def get_wake_words() -> str:
-    """Get current wake words."""
-    _load_config()
-    
-    words = _wake_word_config["wake_words"]
-    always = _wake_word_config.get("always_listen", False)
-    
-    lines = [
-        f"Configured wake words ({len(words)}):",
-        f"  • " + "\n  • ".join(words),
-        f"Always listening: {'ENABLED' if always else 'DISABLED'}"
-    ]
-    
-    return "\n".join(lines)
+def get_wake_word() -> str:
+    """Get current wake word."""
+    config = _load_config()
+    return config.get("word", DEFAULT_WAKE_WORD)
 
 
-def enable_always_listen(enable: bool = True, timeout: int = 30) -> str:
-    """Enable or disable always-listening mode."""
-    global _wake_word_config
-    
-    _load_config()
-    _wake_word_config["always_listen"] = enable
-    _wake_word_config["timeout_seconds"] = timeout
-    
-    _save_config()
-    
-    if enable:
-        return f"Always-listening enabled (timeout: {timeout}s)"
-    else:
-        return "Always-listening disabled"
+def enable_listening() -> str:
+    """Enable always listening mode."""
+    config = _load_config()
+    config["enabled"] = True
+    _save_config(config)
+    return "Always listening enabled."
 
 
-def set_sensitivity(level: float) -> str:
-    """Set wake word sensitivity (0.1-1.0)."""
-    global _wake_word_config
-    
-    sensitivity = max(0.1, min(1.0, float(level)))
-    
-    _load_config()
-    _wake_word_config["sensitivity"] = sensitivity
-    
-    _save_config()
-    
-    return f"Sensitivity set to {sensitivity:.1f}"
-
-
-def check_wake_word(audio_text: str) -> bool:
-    """
-    Check if audio/text contains a wake word.
-    Called by the main audio processing loop.
-    """
-    _load_config()
-    
-    if not _wake_word_config.get("enabled", True):
-        return False
-    
-    global _last_wake_time
-    
-    text_lower = audio_text.lower()
-    
-    # Check for any configured wake word
-    for wake_word in _wake_word_config.get("wake_words", []):
-        if wake_word in text_lower:
-            _last_wake_time = time.time()
-            return True
-    
-    # Check if in always-listen mode
-    if _wake_word_config.get("always_listen", False):
-        timeout = _wake_word_config.get("timeout_seconds", 30)
-        
-        # If recently triggered, stay active
-        if time.time() - _last_wake_time < timeout:
-            return True
-    
-    return False
-
-
-def start_listening(callback: Optional[Callable] = None) -> str:
-    """Start always-listening mode with callback."""
-    global _is_listening, _listen_callback, _wake_event
-    
-    _load_config()
-    
-    if not _wake_word_config.get("enabled", True):
-        return "Wake words are disabled"
-    
-    _is_listening = True
-    _listen_callback = callback
-    _wake_event = threading.Event()
-    _wake_event.set()
-    
-    return "Started listening for wake word..."
-
-
-def stop_listening() -> str:
-    """Stop always-listening mode."""
-    global _is_listening, _wake_event
-    
-    _is_listening = False
-    
-    if _wake_event:
-        _wake_event.clear()
-    
-    return "Stopped listening"
+def disable_listening() -> str:
+    """Disable always listening mode."""
+    config = _load_config()
+    config["enabled"] = False
+    _save_config(config)
+    return "Always listening disabled."
 
 
 def get_status() -> str:
-    """Get wake word system status."""
-    _load_config()
-    
-    lines = [
-        "Wake Word System Status:",
-        f"  Enabled: {_wake_word_config.get('enabled', True)}",
-        f"  Always Listen: {_wake_word_config.get('always_listen', False)}",
-        f"  Timeout: {_wake_word_config.get('timeout_seconds', 30)}s",
-        f"  Sensitivity: {_wake_word_config.get('sensitivity', 0.8)}",
-        f"  Words: {', '.join(_wake_word_config.get('wake_words', []))}"
-    ]
-    
-    return "\n".join(lines)
+    """Get wake word status."""
+    config = _load_config()
+    word = config.get("word", DEFAULT_WAKE_WORD)
+    enabled = config.get("enabled", True)
+    mode = config.get("mode", "active")
+    return f"Wake Word: '{word}' | Listening: {enabled} | Mode: {mode}"
 
 
 def wake_word(
@@ -212,28 +85,25 @@ def wake_word(
     player=None,
     session_memory=None,
 ) -> str:
-    """Main dispatcher for wake word system."""
+    """Main dispatcher for wake word configuration."""
     params = parameters or {}
     action = params.get("action", "status").lower().strip()
     
     if player:
-        player.write_log(f"[wake] {action}")
+        player.write_log(f"[wake_word] {action}")
     
     try:
         if action == "set":
-            return set_wake_word(params.get("wake_word", ""))
-        elif action == "words":
-            return get_wake_words()
+            word = params.get("word", "jarvis")
+            if not word:
+                return "Please specify a wake word."
+            return set_wake_word(word)
+        elif action == "get":
+            return get_wake_word()
         elif action == "enable":
-            return enable_always_listen(True, int(params.get("timeout", 30)))
+            return enable_listening()
         elif action == "disable":
-            return enable_always_listen(False)
-        elif action == "sensitivity":
-            return set_sensitivity(float(params.get("level", 0.8)))
-        elif action == "start":
-            return start_listening()
-        elif action == "stop":
-            return stop_listening()
+            return disable_listening()
         elif action == "status":
             return get_status()
         else:

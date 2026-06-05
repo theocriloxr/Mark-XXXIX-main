@@ -1,84 +1,168 @@
-# universal_dir.py - Access any directory on the system
+# universal_dir.py
+"""
+Universal Directory Access - Full filesystem access beyond home directory.
+"""
+
 import os
 import sys
 import platform
+import subprocess
 from pathlib import Path
+from datetime import datetime
+
 
 _OS = platform.system()
 
-def list_drives() -> str:
-    """List all available drives/volumes."""
-    if _OS == "Windows":
+
+def get_drives() -> str:
+    """List all available drives/mount points."""
+    if _OS == "windows":
         try:
-            import winreg
-            drives = []
+            output = []
             for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
                 drive = f"{letter}:\\"
                 if Path(drive).exists():
-                    drives.append(drive)
-            return "Available drives: " + ", ".join(drives)
+                    try:
+                        stat = os.stat(drive)
+                        output.append(f"{letter}:")
+                    except:
+                        output.append(f"{letter}:")
+            return f"Available drives: {', '.join(output)}"
+        except Exception as e:
+            return f"Error: {e}"
+    elif _OS == "darwin":
+        volumes = "/Volumes"
+        try:
+            if Path(volumes).exists():
+                drives = [p.name for p in Path(volumes).iterdir() if p.is_dir()]
+                return f"Volumes: {', '.join(drives) if drives else 'Main disk only'}"
         except:
             pass
-    
-    # Unix-like
-    volumes = ["/"]
-    return "Mount points:\n  /\n  /home\n  /mnt"
+        return "Available: Root and /Volumes"
+    else:
+        return "Available: / (root)"
 
-def list_directory(path: str = "/", depth: int = 1) -> str:
-    """List directory contents with depth control."""
+
+def list_directory(path: str, show_hidden: bool = False) -> str:
+    """List contents of any directory."""
     try:
-        target = Path(path).expanduser().resolve()
-        
+        target = Path(path)
         if not target.exists():
             return f"Path not found: {path}"
-        
         if not target.is_dir():
             return f"Not a directory: {path}"
         
         items = []
-        for item in sorted(target.iterdir())[:50]:
+        for item in sorted(target.iterdir()):
+            if not show_hidden and item.name.startswith("."):
+                continue
             if item.is_dir():
                 items.append(f"📁 {item.name}/")
             else:
                 size = item.stat().st_size
-                items.append(f"📄 {item.name}")
+                if size < 1024:
+                    size_str = f"{size} B"
+                elif size < 1024 * 1024:
+                    size_str = f"{size/1024:.1f} KB"
+                elif size < 1024 * 1024 * 1024:
+                    size_str = f"{size/1024/1024:.1f} MB"
+                else:
+                    size_str = f"{size/1024/1024/1024:.1f} GB"
+                items.append(f"📄 {item.name} ({size_str})")
         
-        return f"Contents of {target}:\n" + "\n".join(items)
+        if not items:
+            return f"Directory is empty: {path}"
+        
+        return f"Contents of {path} ({len(items)} items):\n" + "\n".join(items)
     except PermissionError:
-        return "Permission denied"
+        return f"Permission denied: {path}"
     except Exception as e:
         return f"Error: {e}"
 
-def get_disk_info() -> str:
-    """Get all disk/volume info."""
-    if _OS == "Windows":
-        try:
-            import winreg
-            drives = []
-            for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
-                drive = f"{letter}:\\"
-                if Path(drive).exists():
-                    try:
-                        import psutil
-                        usage = psutil.disk_usage(drive)
-                        drives.append(f"{drive} {usage.used//(1024**3)}GB/{usage.total//(1024**3)}GB")
-                    except:
-                        drives.append(drive)
-            return "Disks: " + ", ".join(drives)
-        except:
-            pass
-    
-    return "Disk info not available"
 
-def universal_dir(parameters: dict = None, response=None, player=None) -> str:
+def get_info(path: str) -> str:
+    """Get directory info."""
+    try:
+        target = Path(path)
+        if not target.exists():
+            return f"Path not found: {path}"
+        
+        stat = target.stat()
+        info = {
+            "Path": str(target),
+            "Type": "Directory" if target.is_dir() else "File",
+            "Size": stat.st_size,
+            "Created": datetime.fromtimestamp(stat.st_ctime).strftime("%Y-%m-%d %H:%M"),
+            "Modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
+            "Accessed": datetime.fromtimestamp(stat.st_atime).strftime("%Y-%m-%d %H:%M"),
+        }
+        
+        lines = [f"Info for {path}:"]
+        for k, v in info.items():
+            lines.append(f"  {k}: {v}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def find_files(path: str, pattern: str, max_results: int = 20) -> str:
+    """Find files matching pattern."""
+    try:
+        search_path = Path(path)
+        if not search_path.exists():
+            return f"Path not found: {path}"
+        
+        results = []
+        try:
+            for item in search_path.rglob(f"*{pattern}*"):
+                if item.is_file():
+                    results.append(str(item))
+                    if len(results) >= max_results:
+                        break
+        except Exception:
+            pass
+        
+        if not results:
+            return f"No files matching '{pattern}' found in {path}"
+        
+        return f"Found {len(results)} file(s):\n" + "\n".join(results[:max_results])
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def universal_dir(
+    parameters: dict = None,
+    response=None,
+    player=None,
+    session_memory=None,
+) -> str:
+    """Main dispatcher."""
     params = parameters or {}
-    action = params.get("action", "drives").lower().strip()
+    action = params.get("action", "list").lower().strip()
+    path = params.get("path", "C:\\" if _OS == "windows" else "/")
     
-    if action == "drives":
-        return list_drives()
-    elif action == "list":
-        return list_directory(params.get("path", "/"), int(params.get("depth", 1)))
-    elif action == "disks":
-        return get_disk_info()
-    else:
-        return list_drives()
+    if player:
+        player.write_log(f"[universal_dir] {action} {path}")
+    
+    try:
+        if action == "drives" or action == "list_drives":
+            return get_drives()
+        elif action == "list":
+            return list_directory(
+                path,
+                show_hidden=params.get("show_hidden", False)
+            )
+        elif action == "info":
+            return get_info(path)
+        elif action == "navigate":
+            return list_directory(path)
+        elif action == "find":
+            return find_files(
+                path,
+                params.get("pattern", ""),
+                int(params.get("max_results", 20))
+            )
+        else:
+            return get_drives()
+    except Exception as e:
+        return f"Universal dir error: {e}"

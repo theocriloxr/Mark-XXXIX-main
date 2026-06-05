@@ -1,156 +1,104 @@
 # clipboard_manager.py
 """
-Enhanced Clipboard Manager with history and search.
-Part of enhanced JARVIS system.
+Clipboard Manager - Enhanced clipboard with history and AI memory.
 """
 
 import json
-import threading
-from pathlib import Path
+import os
 import sys
-from datetime import datetime
+import time
+from pathlib import Path
+from threading import Lock
+from collections import deque
+
 
 def _get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent
     return Path(__file__).resolve().parent.parent
 
-BASE_DIR = _get_base_dir()
-HISTORY_FILE = BASE_DIR / "memory" / "clipboard_history.json"
-MAX_HISTORY = 50
-_lock = threading.Lock()
 
-# In-memory clipboard history
-_clipboard_history = []
-_current_clipboard = ""
+BASE_DIR = _get_base_dir()
+HISTORY_FILE = BASE_DIR / "config" / "clipboard_history.json"
+_max_history = 50
+_lock = Lock()
 
 
 def _load_history() -> list:
-    """Load clipboard history from file."""
-    global _clipboard_history
-    if HISTORY_FILE.exists():
-        try:
-            data = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
-            if isinstance(data, list):
-                _clipboard_history = data[-MAX_HISTORY:]
-        except:
-            _clipboard_history = []
+    """Load clipboard history."""
+    if not HISTORY_FILE.exists():
+        return []
+    try:
+        return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+    except:
+        return []
 
 
-def _save_history() -> None:
-    """Save clipboard history to file."""
+def _save_history(history: list) -> None:
+    """Save clipboard history."""
     HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
     with _lock:
         HISTORY_FILE.write_text(
-            json.dumps(_clipboard_history, ensure_ascii=False, indent=2),
-            encoding="utf-8"
+json.dumps(history[-_max_history:], indent=2, ensure_ascii=False)
         )
-
-
-def set_clipboard(text: str, label: str = "") -> str:
-    """Set clipboard content and save to history."""
-    global _current_clipboard
-    
-    try:
-        import pyperclip
-        pyperclip.copy(text)
-    except:
-        # Fallback: use pyautogui or other method
-        try:
-            import pyautogui
-            pyautogui.write(text)
-        except:
-            return "Failed to set clipboard: no clipboard library available"
-    
-    _current_clipboard = text
-    
-    # Add to history
-    entry = {
-        "text": text[:500] if len(text) > 500 else text,
-        "label": label,
-        "timestamp": datetime.now().isoformat()
-    }
-    
-    with _lock:
-        _clipboard_history.append(entry)
-        if len(_clipboard_history) > MAX_HISTORY:
-            _clipboard_history = _clipboard_history[-MAX_HISTORY:]
-    
-    _save_history()
-    return f"Clipboard set ({len(text)} chars)"
 
 
 def get_clipboard() -> str:
     """Get current clipboard content."""
-    global _current_clipboard
-    
     try:
         import pyperclip
-        _current_clipboard = pyperclip.paste()
-        return _current_clipboard
+        return pyperclip.paste()
     except:
-        try:
-            import pyautogui
-            pyautogui.hotkey("ctrl", "c")
-            import time
-            time.sleep(0.1)
-        except:
-            pass
-    
-    return _current_clipboard or "Clipboard empty"
+        return "Clipboard access not available."
 
 
-def search_history(query: str) -> str:
-    """Search clipboard history."""
-    _load_history()
-    
-    results = []
-    query_lower = query.lower()
-    
-    for entry in reversed(_clipboard_history):
-        text = entry.get("text", "")
-        label = entry.get("label", "")
-        
-        if query_lower in text.lower() or query_lower in label.lower():
-            results.append(entry)
-    
-    if not results:
-        return f"No matches found for: {query}"
-    
-    lines = [f"Found {len(results)} matches:"]
-    for i, entry in enumerate(results[:10], 1):
-        label = entry.get("label", "no label")
-        text = entry.get("text", "")[:60]
-        ts = entry.get("timestamp", "")[:16]
-        lines.append(f"{i}. [{label}] {text}... ({ts})")
-    
-    return "\n".join(lines)
+def copy_to_clipboard(text: str) -> str:
+    """Copy text to clipboard."""
+    try:
+        import pyperclip
+        pyperclip.copy(text)
+        _add_to_history(text)
+        return "Copied to clipboard."
+    except Exception as e:
+        return f"Copy failed: {e}"
 
 
-def get_history(count: int = 10) -> str:
+def _add_to_history(text: str) -> None:
+    """Add to clipboard history."""
+    if not text or len(text) < 2:
+        return
+    
+    history = _load_history()
+    history.append({
+        "text": text[:500],
+        "timestamp": time.time()
+    })
+    _save_history(history)
+
+
+def get_history(search: str = "", limit: int = 10) -> str:
     """Get clipboard history."""
-    _load_history()
+    history = _load_history()
     
-    if not _clipboard_history:
-        return "No clipboard history"
+    if search:
+        history = [h for h in history if search.lower() in h.get("text", "").lower()]
+    
+    if not history:
+        return "No clipboard history."
     
     lines = ["Clipboard History:"]
-    for i, entry in enumerate(_clipboard_history[-count:], 1):
-        label = entry.get("label", "")
-        text = entry.get("text", "")[:60]
-        ts = entry.get("timestamp", "")[:16]
-        lines.append(f"{i}. {text}... - [{label}] ({ts})")
+    for h in history[-limit:]:
+        ts = time.ctime(h.get("timestamp", 0))
+        text = h.get("text", "")[:100]
+        lines.append(f"  [{ts}] {text}")
     
     return "\n".join(lines)
 
 
 def clear_history() -> str:
     """Clear clipboard history."""
-    global _clipboard_history
-    with _lock:
-        _clipboard_history = []
-    _save_history()
-    return "Clipboard history cleared"
+    _save_history([])
+    return "Clipboard history cleared."
 
 
 def clipboard_manager(
@@ -159,7 +107,7 @@ def clipboard_manager(
     player=None,
     session_memory=None,
 ) -> str:
-    """Main dispatcher for clipboard manager."""
+    """Main dispatcher."""
     params = parameters or {}
     action = params.get("action", "get").lower().strip()
     
@@ -167,17 +115,15 @@ def clipboard_manager(
         player.write_log(f"[clipboard] {action}")
     
     try:
-        if action == "set":
-            return set_clipboard(
-                params.get("text", ""),
-                params.get("label", "")
-            )
-        elif action == "get":
+        if action == "get":
             return get_clipboard()
-        elif action == "search":
-            return search_history(params.get("query", ""))
+        elif action == "copy":
+            return copy_to_clipboard(params.get("text", ""))
         elif action == "history":
-            return get_history(int(params.get("count", 10)))
+            return get_history(
+                params.get("search", ""),
+                int(params.get("limit", 10))
+            )
         elif action == "clear":
             return clear_history()
         else:

@@ -1,119 +1,117 @@
 # network_tools.py
 """
-Network Tools - Network diagnostics, ping, port check, IP lookup, DNS.
-Part of enhanced JARVIS system.
+Network Tools - IP, Ping, Connections, etc.
 """
 
 import platform
-import subprocess
 import socket
-import requests
-from pathlib import Path
-import sys
-
-def _get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-BASE_DIR = _get_base_dir()
+import subprocess
+import time
+from datetime import datetime
 
 
-def ping_host(host: str, count: int = 4) -> str:
-    """Ping a host and return results."""
-    param = "-n" if platform.system() == "Windows" else "-c"
-    timeout_param = "-w" if platform.system() == "Windows" else "-W"
-    
-    try:
-        result = subprocess.run(
-            ["ping", param, str(count), timeout_param, "5", host],
-            capture_output=True, text=True, timeout=30
-        )
-        
-        if result.returncode == 0:
-            # Parse output for stats
-            output = result.stdout
-            if "Average" in output:
-                import re
-                avg_match = re.search(r"Average = (\d+)ms", output)
-                if avg_match:
-                    return f"Ping to {host}: OK - Avg response: {avg_match.group(1)}ms"
-            return f"Ping to {host}: Success\n{output[:300]}"
-        return f"Ping to {host}: Failed\n{result.stderr}"
-    except subprocess.TimeoutExpired:
-        return f"Ping to {host}: Timed out"
-    except Exception as e:
-        return f"Ping error: {e}"
+_OS = platform.system()
 
 
-def check_port(host: str, port: int) -> str:
-    """Check if a port is open on a host."""
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(3)
-        result = sock.connect_ex((host, port))
-        sock.close()
-        
-        if result == 0:
-            return f"Port {port} on {host}: OPEN"
-        return f"Port {port} on {host}: CLOSED"
-    except socket.gaierror:
-        return f"Could not resolve {host}"
-    except Exception as e:
-        return f"Port check error: {e}"
-
-
-def get_local_ip() -> str:
+def get_ip() -> str:
     """Get local IP address."""
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-        return local_ip
-    except Exception:
-        return "Unknown"
-
-
-def get_public_ip() -> str:
-    """Get public IP address."""
-    try:
-        response = requests.get("https://api.ipify.org", timeout=5)
-        return response.text
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        return f"Local IP: {ip}"
     except Exception as e:
-        return f"Unable to get public IP: {e}"
+        return f"Error: {e}"
 
 
-def dns_lookup(domain: str) -> str:
-    """Perform DNS lookup for a domain."""
+def get_external_ip() -> str:
+    """Get external/public IP."""
     try:
-        ip = socket.gethostbyname(domain)
-        return f"{domain} -> {ip}"
-    except socket.gaierror as e:
-        return f"DNS lookup failed: {e}"
+        import requests
+        ip = requests.get("https://api.ipify.org", timeout=5).text
+        return f"External IP: {ip}"
     except Exception as e:
-        return f"DNS error: {e}"
+        return f"Error getting external IP: {e}"
+
+
+def ping_host(host: str = "8.8.8.8", count: int = 4) -> str:
+    """Ping a host."""
+    try:
+        if _OS == "windows":
+            result = subprocess.run(
+                ["ping", "-n", str(count), host],
+                capture_output=True, text=True, timeout=30
+            )
+        else:
+            result = subprocess.run(
+                ["ping", "-c", str(count), host],
+                capture_output=True, text=True, timeout=30
+            )
+        
+        if result.returncode == 0:
+            # Parse the output
+            lines = result.stdout.split("\n")
+            for line in lines:
+                if "time=" in line.lower():
+                    return f"Ping to {host}: {line.strip()}"
+            return f"Ping to {host}: OK"
+        return f"Ping failed: {host}"
+    except Exception as e:
+        return f"Error: {e}"
 
 
 def get_connections() -> str:
     """Get active network connections."""
-    import psutil
     try:
+        import psutil
         connections = psutil.net_connections()
-        established = [c for c in connections if c.status == "ESTABLISHED"]
         
-        lines = [f"Active connections: {len(established)}"]
-        for conn in established[:10]:
+        # Group by status
+        established = []
+        listening = []
+        
+        for conn in connections:
             try:
-                laddr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "?"
-                raddr = f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else "?"
-                lines.append(f"  {conn.status}: {laddr} -> {raddr}")
+                if conn.status == "ESTABLISHED":
+                    established.append(conn)
+                elif conn.status == "LISTEN":
+                    listening.append(conn)
             except:
                 pass
         
+        lines = [
+            f"Connections: {len(established)} established, {len(listening)} listening",
+        ]
+        
+        # Show some established
+        if established[:5]:
+            lines.append("\nEstablished:")
+            for conn in established[:5]:
+                try:
+                    lines.append(f"  {conn.laddr.ip}:{conn.laddr.port} -> {conn.raddr.ip if conn.raddr else '?'}:{conn.raddr.port if conn.raddr else '?'}")
+                except:
+                    pass
+        
         return "\n".join(lines)
     except Exception as e:
-        return f"Connections error: {e}"
+        return f"Error: {e}"
+
+
+def check_port(host: str, port: int) -> str:
+    """Check if a port is open."""
+    import socket
+    
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(3)
+    try:
+        result = sock.connect_ex((host, port))
+        sock.close()
+        if result == 0:
+            return f"Port {port} on {host}: OPEN"
+        return f"Port {port} on {host}: CLOSED"
+    except Exception as e:
+        return f"Error checking port: {e}"
+    finally:
+        sock.close()
 
 
 def network_tools(
@@ -122,36 +120,31 @@ def network_tools(
     player=None,
     session_memory=None,
 ) -> str:
-    """Main dispatcher for network tools."""
+    """Main dispatcher."""
     params = parameters or {}
-    action = params.get("action", "").lower().strip()
-    host = params.get("host", "")
-    port = params.get("port", 0)
-    domain = params.get("domain", "")
+    action = params.get("action", "ip").lower().strip()
     
     if player:
         player.write_log(f"[network] {action}")
     
     try:
-        if action == "ping":
-            if not host:
-                return "Please specify host to ping"
-            return ping_host(host)
-        elif action == "port":
-            if not host or not port:
-                return "Please specify host and port"
-            return check_port(host, int(port))
-        elif action == "ip":
-            local = get_local_ip()
-            public = get_public_ip()
-            return f"Local IP: {local}\nPublic IP: {public}"
-        elif action == "dns":
-            if not domain:
-                return "Please specify domain"
-            return dns_lookup(domain)
+        if action == "ip":
+            return get_ip()
+        elif action == "external_ip":
+            return get_external_ip()
+        elif action == "ping":
+            return ping_host(
+                params.get("host", "8.8.8.8"),
+                int(params.get("count", 4))
+            )
         elif action == "connections":
             return get_connections()
+        elif action == "check_port":
+            return check_port(
+                params.get("host", "localhost"),
+                int(params.get("port", 80))
+            )
         else:
-            return f"Unknown action: {action}"
+            return get_ip()
     except Exception as e:
-        return f"Network tools error: {e}"
+        return f"Network error: {e}"
