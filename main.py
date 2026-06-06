@@ -35,6 +35,9 @@ from actions.ujo_network import ujo_network
 from actions.signal_rank_bridge import signal_rank_bridge
 from core.agent_engine import get_jarvis_agent, execute_agent_command
 
+# Import window tracker for Omnipresent Context Awareness
+from core.context_tracker import start_window_tracker, get_window_tracker
+
 # Import bridge schemas for strict LLM tool calling
 from actions.tool_schemas import (
     UJO_NETWORK_SCHEMA,
@@ -1183,6 +1186,9 @@ class JarvisLive:
 
 def main():
     ui = JarvisUI("face.png")
+
+    # Start Omnipresent Context Awareness (Window Tracker)
+    start_window_tracker()
 
     def runner():
         ui.wait_for_api_key()

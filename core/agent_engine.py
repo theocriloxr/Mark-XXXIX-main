@@ -8,6 +8,8 @@ if it encounters errors, and return the final result.
 
 Features:
 - ChromaDB RAG memory integration for long-term context
+- Omnipresent Context Awareness (window tracking)
+- Multi-Agent Swarms (ManagedAgent delegation)
 - Dynamic tool loading
 - personality-based system prompts
 
@@ -26,7 +28,7 @@ import os
 import sys
 from pathlib import Path
 
-from smolagents import CodeAgent, LiteLLMModel, LocalPythonExecutor
+from smolagents import CodeAgent, LiteLLMModel, LocalPythonExecutor, ManagedAgent
 
 logger = logging.getLogger(__name__)
 
@@ -63,16 +65,12 @@ def _get_model_id(llm_backend: str) -> str:
     backend = llm_backend.lower()
     
     if "gemini" in backend:
-        # Already in gemini-X format, prepend google/
         model_id = f"google/{backend}"
     elif "claude" in backend:
-        # Convert claude-X to anthropic/claude-X
         model_id = f"anthropic/{backend}"
     elif "gpt" in backend or "o1" in backend or "o3" in backend:
-        # Convert gpt-4o to openai/gpt-4o
         model_id = f"openai/{backend}"
     else:
-        # Default fallback
         model_id = "google/gemini-2.5-flash"
     
     logger.info(f"Model ID for LiteLLM: {model_id}")
@@ -89,6 +87,8 @@ def get_jarvis_agent(user_prompt: str = ""):
     - Executes code in a secure LocalPythonExecutor sandbox
     - Self-corrects if it encounters syntax or runtime errors
     - Retrieves relevant long-term memories via RAG
+    - Has ambient OS context from window tracking
+    - Can delegate to sub-agents for complex tasks
     - Has access to memorize/recall tools
     - Returns the final result as a string response
     
@@ -101,6 +101,7 @@ def get_jarvis_agent(user_prompt: str = ""):
     # Import ConfigManager here to avoid circular imports
     from core.config_manager import config
     from core.chroma_memory import chroma_memory
+    from core.context_tracker import get_window_tracker, is_tracker_running
     from actions.memory_tools import MemorizeTool, RecallTool, GetMemoryCountTool
     from actions.vision_tools import InspectScreenTool, DesktopClickTool
     
@@ -113,7 +114,6 @@ def get_jarvis_agent(user_prompt: str = ""):
     # 3. Load and set API key based on provider
     api_keys = _load_api_keys()
     
-    # Determine provider and set appropriate API key
     if "google" in model_id:
         api_key = api_keys.get("gemini_api_key", os.environ.get("GOOGLE_API_KEY", ""))
         os.environ["GOOGLE_API_KEY"] = api_key
@@ -129,7 +129,17 @@ def get_jarvis_agent(user_prompt: str = ""):
     # 4. Get personality prompt from config
     personality_prompt = config.get_personality_prompt()
     
-    # 5. RAG: Fetch relevant memories based on user prompt
+    # 5a. Get ambient window context (Omnipresent Context Awareness)
+    ambient_context = ""
+    try:
+        if is_tracker_running():
+            tracker = get_window_tracker()
+            ambient_context = tracker.get_context_string()
+            logger.info(f"[Context] Active window: {tracker.current_window}")
+    except Exception as e:
+        logger.warning(f"[Context] Tracker unavailable: {e}")
+    
+    # 5b. RAG: Fetch relevant memories based on user prompt
     memory_context = ""
     if user_prompt and user_prompt.strip():
         try:
@@ -140,32 +150,40 @@ def get_jarvis_agent(user_prompt: str = ""):
         except Exception as e:
             logger.warning(f"[RAG] Memory recall failed: {e}")
     
-    # Build RAG-augmented system prompt
+    # ========== BUILD ENHANCED SYSTEM PROMPT ==========
+    prompt_parts = [personality_prompt]
+    
+    # Add ambient OS context (what user is looking at right now)
+    if ambient_context:
+        prompt_parts.append(
+            f"\n## AMBIENT OS CONTEXT (What You're Looking At Right Now)\n"
+            f"{ambient_context}\n"
+            f"This context is automatically tracked. Use it to provide relevant assistance."
+        )
+    
+    # Add long-term memory context
     if memory_context:
-        system_prompt = (
-            f"{personality_prompt}\n\n"
-            "## LONG-TERM MEMORY (Relevant Past Context)\n"
-            f"{memory_context}\n\n"
-            "You have access to the above memories from past conversations. "
-            "Use them to provide personalized responses. "
-            "If the user asks you to remember something, use the memorize_fact tool.\n\n"
-            "You also have access to a secure local Python execution environment. "
-            "When given a complex task, write Python code to accomplish it, execute the code, "
-            "analyze the output, and self-correct if needed. "
-            "Always provide the final result to the user. "
-            "Use standard libraries (os, pathlib, json, etc.) freely. "
-            "Do not simulate results - actually execute the code."
+        prompt_parts.append(
+            f"\n## LONG-TERM MEMORY (Relevant Past Context)\n"
+            f"{memory_context}\n"
+            f"You have access to the above memories from past conversations. "
+            f"Use them to provide personalized responses."
         )
-    else:
-        system_prompt = (
-            f"{personality_prompt}\n\n"
-            "You have access to a secure local Python execution environment. "
-            "When given a complex task, write Python code to accomplish it, execute the code, "
-            "analyze the output, and self-correct if needed. "
-            "Always provide the final result to the user. "
-            "Use standard libraries (os, pathlib, json, etc.) freely. "
-            "Do not simulate results - actually execute the code."
-        )
+    
+    # Add execution and delegation capabilities
+    prompt_parts.append(
+        f"\n## CAPABILITIES\n"
+        f"You have access to a secure local Python execution environment. "
+        f"When given a complex task, write Python code to accomplish it, execute the code, "
+        f"analyze the output, and self-correct if needed.\n"
+        f"If the task requires research or complex multi-step work, delegate to your sub-agents:\n"
+        f"  - web_researcher: For web searches, documentation, and information gathering\n"
+        f"  - senior_engineer: For complex code writing, testing, and execution\n"
+        f"Always provide the final result to the user. "
+        f"Do not simulate results - actually execute the code."
+    )
+    
+    system_prompt = "\n\n".join(prompt_parts)
     
     # 6. Initialize the LLM wrapper
     model = LiteLLMModel(model_id=model_id)
@@ -186,12 +204,50 @@ def get_jarvis_agent(user_prompt: str = ""):
     # Combine all tools
     all_tools = memory_tools + vision_tools
     
-    # 8. Create the CodeAgent with execution sandbox
+    # 8a. Create sub-agents for multi-agent swarm
+    # Research Agent - for web searches and information gathering
+    research_agent = CodeAgent(
+        tools=[],
+        model=model,
+        add_base_tools=True,
+        prompt_templates={
+            "system_prompt": "You are a meticulous researcher. Find data, search the web, "
+            "read documentation, and summarize information accurately."
+        }
+    )
+    
+    # Coder Agent - for complex code writing and execution
+    coder_agent = CodeAgent(
+        tools=[],
+        model=model,
+        add_base_tools=True,
+        executor=LocalPythonExecutor(),
+        prompt_templates={
+            "system_prompt": "You are a senior Python developer. Write flawless code, "
+            "test it thoroughly, and ensure it runs without errors."
+        }
+    )
+    
+    # 8b. Wrap sub-agents in ManagedAgent classes
+    managed_researcher = ManagedAgent(
+        agent=research_agent,
+        name="web_researcher",
+        description="Call this agent when you need to search the internet, read documentation, or gather facts."
+    )
+    
+    managed_coder = ManagedAgent(
+        agent=coder_agent,
+        name="senior_engineer",
+        description="Call this agent when you need complex python scripts written, tested, or executed."
+    )
+    
+    # 9. Create the Orchestrator (JARVIS) with managed sub-agents
     # add_base_tools=True gives web search and basic utilities
     agent = CodeAgent(
         tools=all_tools,
         model=model,
         add_base_tools=True,
+        managed_agents=[managed_researcher, managed_coder],
         prompt_templates={
             "system_prompt": system_prompt
         },
