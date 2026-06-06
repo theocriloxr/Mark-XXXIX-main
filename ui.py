@@ -1417,7 +1417,7 @@ class MainWindow(QMainWindow):
                 QPushButton:hover {{ background: #001f10; }}
             """)
 
-def _send(self):
+    def _send(self):
         txt = self._input.text().strip()
         if not txt: return
         self._input.clear()
