@@ -1,24 +1,36 @@
-# TODO - smolagents CodeAgent Engine Implementation
+# JARVIS ChromaDB RAG Memory Implementation
 
-## Plan Overview
-Implement Upgrade #2: The smolagents CodeAgent Engine to give JARVIS dynamic Python execution sandbox.
+## Overview
+Implementing infinite RAG memory via ChromaDB for persistent, ultra-fast long-term memory.
 
-## Steps
+## Tasks
 
-### Step 1: Install Dependencies
-- [ ] Add smolagents to requirements.txt
+### Step 1: Add ChromaDB to requirements.txt
+- [ ] Add chromadb to requirements.txt dependencies
 
-### Step 2: Create Agent Engine
-- [ ] Create core/agent_engine.py with CodeAgent orchestration
-- [ ] Bind to ConfigManager for dynamic backend and personality
-- [ ] Implement get_jarvis_agent() function
+### Step 2: Create ChromaDB Memory Manager (core/chroma_memory.py)
+- [ ] Create new core/chroma_memory.py with:
+  - ChromaDB PersistentClient setup
+  - Collection with cosine similarity
+  - memorize() function
+  - recall() function
+  - Global singleton instance
 
-### Step 3: Integrate with main.py
-- [ ] Import agent_engine in main.py
-- [ ] Add agent routing for complex commands
-- [ ] Keep existing tool system for backward compatibility
+### Step 3: Create Memory Tools (actions/memory_tools.py)
+- [ ] Create MemorizeTool for saving facts
+- [ ] Create RecallTool for retrieving memories  
+- [ ] Export tools for agent integration
 
-### Step 4: Test
-- [ ] Test agent initialization
-- [ ] Verify ConfigManager binding when llm_backend changes
-- [ ] Test command execution flow
+### Step 4: Wire RAG into Agent (core/agent_engine.py)
+- [ ] Import chroma_memory and memory_tools
+- [ ] Add RAG system prompt injection in get_jarvis_agent()
+- [ ] Add memorize/recall tools to agent tools list
+
+### Step 5: Install dependencies and test
+- [ ] Run pip install chromadb
+- [ ] Test memory functionality
+
+## Follow-up (Future Enhancements)
+- Auto-memorize important details from conversations
+- Memory consolidation/cleanup
+- Export/import memory backup

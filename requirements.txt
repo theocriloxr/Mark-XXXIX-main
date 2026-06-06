@@ -31,3 +31,6 @@ pyaudio
 
 # Smolagents - Dynamic Code Execution Engine
 smolagents
+
+# ChromaDB - Vector Database for RAG Memory
+chromadb

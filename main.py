@@ -33,6 +33,7 @@ from actions.computer_control import computer_control
 from actions.game_updater import game_updater
 from actions.ujo_network import ujo_network
 from actions.signal_rank_bridge import signal_rank_bridge
+from core.agent_engine import get_jarvis_agent, execute_agent_command
 
 # Import bridge schemas for strict LLM tool calling
 from actions.tool_schemas import (
