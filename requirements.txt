@@ -31,6 +31,9 @@ pyaudio
 # Smolagents - Dynamic Code Execution Engine
 smolagents
 
+# Knowledge Graph - Synapse relational memory
+networkx>=3.0
+
 # ChromaDB - Vector Database for RAG Memory
 chromadb
 watchdog
