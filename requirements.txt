@@ -28,3 +28,6 @@ pyaudio
 
 # System Tray (optional - alternative to pystray below)
 # pystray  # Already implemented in actions/tray_icon.py
+
+# Smolagents - Dynamic Code Execution Engine
+smolagents
