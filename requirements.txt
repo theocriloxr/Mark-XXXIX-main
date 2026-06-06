@@ -34,3 +34,10 @@ smolagents
 
 # ChromaDB - Vector Database for RAG Memory
 chromadb
+watchdog
+transformers 
+torch
+paho-mqtt 
+phue
+homeassistant
+websockets
