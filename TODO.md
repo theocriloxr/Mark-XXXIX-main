@@ -1,41 +1,24 @@
-# Jarvis OS-AI Architecture Implementation
+# TODO - smolagents CodeAgent Engine Implementation
 
-## Task List
+## Plan Overview
+Implement Upgrade #2: The smolagents CodeAgent Engine to give JARVIS dynamic Python execution sandbox.
 
-### Phase 1: Fix Immediate Issues
+## Steps
 
-- [x] TODO created
-- [x] Fix 1: Move PROJECTS_DIR inside Jarvis directory (not Desktop)
-- [x] Fix 2: Verify asyncio.to_thread usage for heavy operations
+### Step 1: Install Dependencies
+- [ ] Add smolagents to requirements.txt
 
-### Phase 2: Implement Supervisor-Worker Pattern
+### Step 2: Create Agent Engine
+- [ ] Create core/agent_engine.py with CodeAgent orchestration
+- [ ] Bind to ConfigManager for dynamic backend and personality
+- [ ] Implement get_jarvis_agent() function
 
-- [x] Create worker_dev_agent.py - separate worker process for DevAgent
-- [x] Update main.py to use subprocess for DevAgent calls
-- [x] Implement task/result communication via JSON files
+### Step 3: Integrate with main.py
+- [ ] Import agent_engine in main.py
+- [ ] Add agent routing for complex commands
+- [ ] Keep existing tool system for backward compatibility
 
-### Phase 3: Self-Healing & Stability
-
-- [x] Add watchdog mechanism to monitor worker process
-- [x] Add graceful error handling for worker crashes
-
-### Phase 4: Bridge Tools Integration
-
-- [x] Add ujo_network tool for Ujo daemon routing
-- [x] Add signal_rank_bridge tool for trading intelligence
-
-## Progress
-
-1. ✅ Analyzed current architecture - understood the blocking issue
-2. ✅ Confirmed plan with user
-3. ✅ All fixes implemented
-4. ✅ Bridge tools integrated
-
-## Summary of Changes
-
-1. **Moved PROJECTS_DIR** in `actions/dev_agent.py` from Desktop to BASE_DIR/projects
-2. **Created worker_dev_agent.py** - separate worker process for heavy DevAgent operations
-3. **Updated main.py** - added execution handlers for ujo_network and signal_rank_bridge tools
-4. **Added bridge tool declarations** - ujo_network for Ujo daemon, signal_rank_bridge for trading
-
-These changes implement the Supervisor-Worker pattern to prevent blocking the WebSocket event loop.
+### Step 4: Test
+- [ ] Test agent initialization
+- [ ] Verify ConfigManager binding when llm_backend changes
+- [ ] Test command execution flow

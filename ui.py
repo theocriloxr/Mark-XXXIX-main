@@ -1417,7 +1417,7 @@ class MainWindow(QMainWindow):
                 QPushButton:hover {{ background: #001f10; }}
             """)
 
-    def _send(self):
+def _send(self):
         txt = self._input.text().strip()
         if not txt: return
         self._input.clear()
@@ -1429,7 +1429,7 @@ class MainWindow(QMainWindow):
         self.hud.state    = state
         self.hud.speaking = (state == "SPEAKING")
 
-def _check_config(self) -> bool:
+    def _check_config(self) -> bool:
         if not API_FILE.exists(): return False
         try:
             d = json.loads(API_FILE.read_text(encoding="utf-8"))
