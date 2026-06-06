@@ -102,6 +102,7 @@ def get_jarvis_agent(user_prompt: str = ""):
     from core.config_manager import config
     from core.chroma_memory import chroma_memory
     from actions.memory_tools import MemorizeTool, RecallTool, GetMemoryCountTool
+    from actions.vision_tools import InspectScreenTool, DesktopClickTool
     
     # 1. Fetch current backend from config (e.g., 'gemini-2.5-flash')
     llm_backend = config.get("llm_backend", "gemini-2.5-flash")
@@ -176,10 +177,19 @@ def get_jarvis_agent(user_prompt: str = ""):
         GetMemoryCountTool(),
     ]
     
+    # 7b. Create vision tools for screen inspection and desktop control
+    vision_tools = [
+        InspectScreenTool(),
+        DesktopClickTool(),
+    ]
+    
+    # Combine all tools
+    all_tools = memory_tools + vision_tools
+    
     # 8. Create the CodeAgent with execution sandbox
     # add_base_tools=True gives web search and basic utilities
     agent = CodeAgent(
-        tools=memory_tools,
+        tools=all_tools,
         model=model,
         add_base_tools=True,
         prompt_templates={
