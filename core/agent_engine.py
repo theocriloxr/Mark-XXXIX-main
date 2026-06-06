@@ -128,24 +128,58 @@ def get_jarvis_agent(user_prompt: str = ""):
     # 4. Get personality prompt from config
     personality_prompt = config.get_personality_prompt()
     
-    # Extend the personality for code agent context
-    system_prompt = (
-        f"{personality_prompt}\n\n"
-        "You have access to a secure local Python execution environment. "
-        "When given a complex task, write Python code to accomplish it, execute the code, "
-        "analyze the output, and self-correct if needed. "
-        "Always provide the final result to the user. "
-        "Use standard libraries (os, pathlib, json, etc.) freely. "
-        "Do not simulate results — actually execute the code."
-    )
+    # 5. RAG: Fetch relevant memories based on user prompt
+    memory_context = ""
+    if user_prompt and user_prompt.strip():
+        try:
+            relevant_memories = chroma_memory.recall(user_prompt, n_results=3)
+            if relevant_memories:
+                memory_context = "\n".join(relevant_memories)
+                logger.info(f"[RAG] Retrieved {len(relevant_memories)} relevant memories")
+        except Exception as e:
+            logger.warning(f"[RAG] Memory recall failed: {e}")
     
-    # 5. Initialize the LLM wrapper
+    # Build RAG-augmented system prompt
+    if memory_context:
+        system_prompt = (
+            f"{personality_prompt}\n\n"
+            "## LONG-TERM MEMORY (Relevant Past Context)\n"
+            f"{memory_context}\n\n"
+            "You have access to the above memories from past conversations. "
+            "Use them to provide personalized responses. "
+            "If the user asks you to remember something, use the memorize_fact tool.\n\n"
+            "You also have access to a secure local Python execution environment. "
+            "When given a complex task, write Python code to accomplish it, execute the code, "
+            "analyze the output, and self-correct if needed. "
+            "Always provide the final result to the user. "
+            "Use standard libraries (os, pathlib, json, etc.) freely. "
+            "Do not simulate results - actually execute the code."
+        )
+    else:
+        system_prompt = (
+            f"{personality_prompt}\n\n"
+            "You have access to a secure local Python execution environment. "
+            "When given a complex task, write Python code to accomplish it, execute the code, "
+            "analyze the output, and self-correct if needed. "
+            "Always provide the final result to the user. "
+            "Use standard libraries (os, pathlib, json, etc.) freely. "
+            "Do not simulate results - actually execute the code."
+        )
+    
+    # 6. Initialize the LLM wrapper
     model = LiteLLMModel(model_id=model_id)
     
-    # 6. Create the CodeAgent with execution sandbox
+    # 7. Create memory tools for the agent
+    memory_tools = [
+        MemorizeTool(),
+        RecallTool(),
+        GetMemoryCountTool(),
+    ]
+    
+    # 8. Create the CodeAgent with execution sandbox
     # add_base_tools=True gives web search and basic utilities
     agent = CodeAgent(
-        tools=[],  # Custom tools can be added here later
+        tools=memory_tools,
         model=model,
         add_base_tools=True,
         prompt_templates={
@@ -154,7 +188,13 @@ def get_jarvis_agent(user_prompt: str = ""):
         executor=LocalPythonExecutor()  # Secure local sandbox
     )
     
-    logger.info("JARVIS CodeAgent initialized successfully")
+    # Log memory count
+    try:
+        mem_count = chroma_memory.count()
+        logger.info(f"JARVIS CodeAgent initialized with {mem_count} memories")
+    except:
+        logger.info("JARVIS CodeAgent initialized")
+    
     return agent
 
 
