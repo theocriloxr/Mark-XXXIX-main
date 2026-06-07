@@ -1,193 +1,284 @@
-# JARVIS Master-Tier Architecture Upgrade Plan
+# Master-Tier Upgrades Implementation Plan
 
-Based on comprehensive code analysis, here is the detailed implementation plan for the final frontier upgrades.
+## Overview
+Implementing four major upgrades + OS bridge to finalize the JARVIS ecosystem:
 
----
+1. **Synapse Knowledge Graph** - Relational memory with multi-hop reasoning
+2. **Shadow Sandbox** - Isolated container testing for self-evolving code  
+3. **Agentic GDP Tracker** - Financial tracking dashboard for AI P&L
+4. **Neural Mirroring** - UI cognitive adaptation to brain states
 
-## Information Gathered
-
-### Current Architecture Summary:
-- **Main System**: `main.py` - WebSocket-based live audio conversation with Gemini 2.5 Flash
-- **Agent Engine**: `core/agent_engine.py` - smolagents CodeAgent with multi-agent delegation
-- **Multi-Agent**: `agent/multi_agent.py` - Sub-agent coordination system (research, code, file, system agents)
-- **Context Tracker**: `core/context_tracker.py` - Active window tracking every 3 seconds
-- **Wake Word**: `actions/wake_word.py` - openWakeWord integration for always-listening
-- **Ujo Bridge**: `actions/ujo_network.py` - HTTP-based daemon for remote execution
-- **30+ Tools**: File processing, web search, computer control, vision, etc.
-
-### Current Limitations (that these upgrades will fix):
-1. **Turn-based communication**: 3-8 second latency (speak → transcribe → generate → TTS → play)
-2. **No permanent learning**: Each dev_agent task is one-time only
-3. **No speculative context**: Responds only after user speaks
-4. **No emotion detection**: Same persona regardless of user mood
-5. **No real-time file indexing**: Uses search-based file lookup
+## Additional Requirements:
+5. **Universal OS Bridge** - Cross-platform abstraction
+6. **Synapse-Sync** - P2P memory sharing
 
 ---
 
-## Implementation Plan
+## Upgrade 1: Synapse Knowledge Graph
 
-### Phase 1: Evolution Lab (Self-Coding & Auto-Installing Skills)
-**Goal**: JARVIS learns new skills permanently instead of one-time execution
+### File: `core/synapse_knowledge_graph.py` (NEW)
 
-**Files to create/modify:**
-1. `actions/evolution_lab.py` - NEW: Tool maker orchestration
-2. `actions/sandbox/` - NEW: Directory for experimental tools
-3. `actions/tool_maker.py` - NEW: Agent that writes, tests, and validates new tools
+**Purpose**: NetworkX-based knowledge graph for relational memory
 
-**Workflow:**
-```
-User request → analyze for reusability → delegate to tool_maker agent
-  → write tool.py + test_tool.py in sandbox
-  → run pytest, self-fix on failure
-  → hot-reload into main actions/ directory
-  → use importlib.reload() to inject without restart
-```
+**Features**:
+- Entity extraction from any memory
+- Relations: works_on, hosts, owns, depends_on, manages, uses, created_by
+- Multi-hop queries: Find paths between entities
+- Persistent storage as JSON
 
-**Implementation:**
-- Create `actions/sandbox/` directory structure
-- Create `actions/evolution_lab.py` main controller
-- Create `actions/tool_maker.py` with CodeAgent for code generation
-- Add tool schema for the Evolution Lab in `actions/tool_schemas.py`
+**Implementation**:
+```python
+import networkx as nx
+import json
+from pathlib import Path
 
-### Phase 2: Zero-Latency Streaming Voice Pipeline
-**Goal**: Sub-800ms latency for real-time Iron Man experience
-
-**Files to modify:**
-1. `main.py` - Upgrade from turn-based to streaming pipeline
-2. `actions/wake_word.py` - Enhanced with streaming STT integration
-
-**Architecture Changes:**
-- **Streaming STT**: Feed audio chunks directly to faster-whisper or Deepgram
-- **Streaming LLM**: Enable `stream=True` in LiteLLMModel
-- **Streaming TTS WebSocket**: Connect to Cartesia/ElevenLabs WebSocket API
-- **Parallel Pipeline**: Begin speaking while still generating
-
-**Implementation:**
-- Modify `JarvisLive` class to use async audio streaming
-- Add WebSocket connection for real-time TTS
-- Implement audio chunk prefetching
-
-### Phase 3: Ujo-Distributed Swarms
-**Goal**: Offload heavy tasks to remote machines via Ujo network
-
-**Files to modify:**
-1. `actions/ujo_network.py` - Extend for agent swarm execution
-2. `actions/tool_schemas.py` - Add distributed execution schema
-3. `agent/multi_agent.py` - Integrate with remote execution
-
-**Implementation:**
-- Add `distributed_exec` action to Ujo bridge
-- Create `execute_remote_agent()` function
-- Add streaming result callback
-
-### Phase 4: Omniceptive File System (Real-Time Indexing)
-**Goal**: JARVIS knows every file change in real-time without searching
-
-**Files to create:**
-1. `core/file_watcher.py` - NEW: watchdog-based file system monitor
-2. `core/file_index.db` - NEW: SQLite graph for file metadata
-
-**Implementation:**
-```
-OS file event → watchdog observer → update SQLite index
-  → "Where did I save that invoice?" → instant answer from index
+class SynapseKnowledgeGraph:
+    def __init__(self):
+        self.graph = nx.MultiDiGraph()
+        self._entities = {}  # entity_id -> {name, type, properties}
+        self._load()
+    
+    def add_entity(self, entity_id: str, name: str, entity_type: str, properties: dict = None):
+        """Add entity to graph"""
+        
+    def add_relation(self, from_id: str, relation: str, to_id: str, properties: dict = None):
+        """Add relation between entities"""
+        
+    def query_path(self, start_entity: str, end_entity: str) -> list:
+        """Multi-hop reasoning: find path between entities"""
+        
+    def save(self):
+        """Persist graph to JSON"""
+        
+    def load(self):
+        """Load graph from JSON"""
 ```
 
-- Use `watchdog` library to monitor file system events
-- Create SQLite database for file metadata (path, timestamp, size, hash)
-- Add file index query tool
-
-### Phase 5: Speculative Pre-Computation (Mind Reader)
-**Goal**: Anticipate user needs before they speak
-
-**Files to modify:**
-1. `core/context_tracker.py` - Add prediction logic
-2. `actions/signal_rank_bridge.py` - Integrate with SignalRank for trading
-
-**Implementation:**
-- Track window patterns (e.g., opens crypto chart → pre-fetch trading signals)
-- Create prediction queue based on context
-- Pre-compute responses before user asks
-
-### Phase 6: Acoustic Sentiment Adaptation
-**Goal**: Detect user emotion and adapt JARVIS personality
-
-**Files to create:**
-1. `core/sentiment_analyzer.py` - NEW: Voice emotion detection
-
-**Implementation:**
-- Pipe live audio to lightweight sentiment classifier
-- Adapt system prompt based on detected emotion:
-  - Calm → conversational, detailed
-  - Frustrated → urgent, concise, no pleasantries
-
-### Phase 7: Local Environmental Control (IoT Syncing)
-**Goal**: Control physical environment (lights, etc.) based on workflow
-
-**Files to create:**
-1. `actions/smart_home.py` - NEW: Smart home integration
-
-**Implementation:**
-- Connect to Home Assistant API, MQTT, or Philips Hue
-- Detect workflow context (VS Code + Terminal = "Deep Work")
-- Automate: dim lights, desk lamp on, notifications pause
+### Integration:
+- Modify `memory/memory_manager.py` to extract entities before saving
+- Add to tool declarations in `main.py`
 
 ---
 
-## Dependent Files to be Edited
+## Upgrade 2: Shadow Sandbox  
 
-### Creation (NEW):
-1. `core/file_watcher.py`
-2. `core/sentiment_analyzer.py`
-3. `actions/evolution_lab.py`
-4. `actions/tool_maker.py`
-5. `actions/smart_home.py`
-6. `core/prediction_engine.py`
+### File: `actions/sandbox/shadow_sandbox.py` (NEW)
 
-### Modification (EXISTING):
-1. `main.py` - Streaming pipeline, sentiment analysis
-2. `core/context_tracker.py` - Speculative pre-computation
-3. `actions/wake_word.py` - Streaming STT
-4. `actions/tool_schemas.py` - Add new tool schemas
-5. `actions/ujo_network.py` - Distributed agent execution
-6. `agent/multi_agent.py` - Remote agent support
+**Purpose**: Docker-based isolated testing environment
 
----
+**Features**:
+- Spin up headless Docker container
+- Chaos tests: memory leak, unauthorized socket detection
+- Safe code execution before deployment
+- Result verification before "ascension"
 
-## Testing & Follow-up
+**Implementation**:
+```python
+import docker
 
-1. **Unit Tests**: Each new module needs test files
-2. **Integration Tests**: Full workflow testing
-3. **Performance Benchmarks**:
-   - Voice latency: measure ms from wake to first audio
-   - File indexing: measure ms for file queries
-   - Prediction accuracy: track pre-computation hits
-4. **User Testing**: Subjective quality assessment of personality adaptation
+class ShadowSandbox:
+    def __init__(self):
+        self.client = docker.from_env()
+        self.container = None
+    
+    def deploy(self, code: str, language: str = "python") -> str:
+        """Deploy code to sandbox container"""
+        
+    def run_chaos_tests(self, code: str) -> dict:
+        """Run safety tests"""
+        
+    def verify_and_ascend(self, code: str) -> bool:
+        """Verify safe -> deploy to production"""
+```
 
----
+### File: `actions/sandbox/chaos_tests.py` (NEW)
 
-## Implementation Priority (Recommended)
-
-**Tier 1 (Critical for "Iron Man" experience):**
-1. Evolution Lab (Phase 1)
-2. Zero-Latency Streaming (Phase 2)
-
-**Tier 2 (Advanced features):**
-3. Ujo-Distributed Swarms (Phase 3)
-4. Omniceptive File System (Phase 4)
-
-**Tier 3 (Bleeding-edge):**
-5. Speculative Pre-Computation (Phase 5)
-6. Acoustic Sentiment Adaptation (Phase 6)
-7. Local Environmental Control (Phase 7)
+**Chaos Tests**:
+- Memory leak detection
+- Unauthorized socket attempts
+- Infinite loop detection
+- Resource exhaustion prevention
 
 ---
 
-## Next Steps
+## Upgrade 3: Agentic GDP Tracker  
 
-Please review and confirm which phases you'd like to implement first:
-- **Option A**: Implement Tier 1 first (Evolution Lab + Streaming Pipeline)
-- **Option B**: Full implementation in order
-- **Option C**: Specific phase(s) only
+### File: `actions/financials.py` (NEW)
 
-I will then proceed with creating the TODO.md and implementing the files.
+**Purpose**: Track JARVIS's P&L as autonomous business
+
+**Features**:
+- Track AWS costs, LLM token costs, crypto transactions
+- Value Generated metrics: tasks completed, code written
+- Real-time P&L statement
+- Sub-agent profitability analysis
+
+**Implementation**:
+```python
+class AgenticFinancials:
+    def __init__(self):
+        self.expenses = []
+        self.revenue = []
+        self.tasks_completed = 0
+    
+    def track_expense(self, category: str, amount: float, description: str):
+        """Track any expense"""
+        
+    def track_value(self, task_type: str, value: float):
+        """Track value generated"""
+        
+    def get_pl_statement(self) -> dict:
+        """Get P&L statement"""
+        
+    def get_agent_profitability(self) -> dict:
+        """Which sub-agents are profitable"""
+```
+
+### Integration:
+- Extend `actions/economic_agent.py`
+- Add to `main.py` tool declarations
+
+---
+
+## Upgrade 4: Neural Mirroring  
+
+### File: `core/neural_mirror.py` (NEW)
+
+**Purpose**: Adapt UI based on brain states
+
+**Features**:
+- Listen to cognitive state from neural_decoding
+- UI modes: Focused (minimalist), Stressed (enlarged buttons), Relaxed (standard), Confused (help offered)
+- Color palette shifts based on state
+
+**Implementation**:
+```python
+class NeuralMirror:
+    def __init__(self):
+        self.current_mode = "standard"
+        
+    def adapt_ui(self, cognitive_state: str):
+        """Adapt UI based on brain state"""
+        
+    def enable_minimalist_mode(self):
+        """Hide notifications, dim dashboard"""
+        
+    def enable_focus_mode(self):
+        """Calm deep blue, hide non-essential"""
+        
+    def enable_help_mode(self):
+        """Enlarge help options"""
+```
+
+### Integration:
+- Link to `core/neural_decoding.py`
+- Link to `ui_command_center.py` styling
+
+---
+
+## Upgrade 5: Universal OS Bridge  
+
+### File: `core/bridge.py` (NEW)
+
+**Purpose**: Cross-platform abstraction
+
+**Features**:
+- Detect OS: Windows, macOS, Linux
+- Unified API for: get_active_window, notify, get_resource_usage
+- Platform-specific backends
+
+**Implementation**:
+```python
+import platform
+import subprocess
+
+class OSBridge:
+    def __init__(self):
+        self.os_type = platform.system()
+        
+    def get_active_window_title(self):
+        if self.os_type == "Windows":
+            # pygetwindow / ctypes
+        elif self.os_type == "Darwin":
+            # AppleScript
+        elif self.os_type == "Linux":
+            # xprop
+            
+    def notify(self, title: str, message: str):
+        """Cross-platform notifications"""
+```
+
+### Integration:
+- Replace `core/context_tracker.py` imports
+- Update `main.py` imports
+
+---
+
+## Upgrade 6: Synapse-Sync (P2P Memory)
+
+### File: `core/synapse_sync.py` (NEW)
+
+**Purpose**: Share memory across devices
+
+**Features**:
+- UDP/TCP listener for memory sync
+- Broadcast new memories to peer devices
+- Requires Tailscale VPN for same network
+
+**Implementation**:
+```python
+class SynapseSync(threading.Thread):
+    def __init__(self, peer_ips: list = None):
+        self.peer_ips = peer_ips or []
+        
+    def broadcast_memory(self, memory_text: str):
+        """Send to all peers"""
+        
+    def process_incoming_memory(self, payload: dict):
+        """Inject synced memory into local ChromaDB"""
+```
+
+---
+
+## Implementation Order
+
+| # | Module | File | Dependency | Priority |
+|---|--------|------|------------|-----------|
+| 1 | OS Bridge | core/bridge.py | None | HIGH |
+| 2 | Synapse KG | core/synapse_knowledge_graph.py | bridge.py | HIGH |
+| 3 | Shadow Sandbox | actions/sandbox/shadow_sandbox.py | bridge.py | MEDIUM |
+| 4 | GDP Tracker | actions/financials.py | None | MEDIUM | 
+| 5 | Neural Mirror | core/neural_mirror.py | neural_decoding.py | LOW |
+| 6 | Synapse-Sync | core/synapse_sync.py | synapse_kg.py | LOW |
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|--------|
+| main.py | Add tool declarations, integrate bridge |
+| memory/memory_manager.py | Add entity extraction hooks |
+| core/agent_engine.py | Import bridge for context |
+| ui_command_center.py | Add neural mirror styling |
+| requirements.txt | Add networkx (already added), docker |
+
+---
+
+## Dependencies (Already in requirements.txt)
+- networkx>=3.0 ✓
+- docker>=7.0 ✓ (needs addition)
+
+---
+
+## Follow-up Steps
+
+1. Install: `pip install networkx docker`
+2. Create core/synapse_knowledge_graph.py
+3. Create core/bridge.py
+4. Create actions/sandbox/shadow_sandbox.py  
+5. Create actions/financials.py
+6. Create core/neural_mirror.py
+7. Integrate into main.py
+8. Test each module
+9. Verify Command Center integration
