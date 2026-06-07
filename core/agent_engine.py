@@ -28,7 +28,13 @@ import os
 import sys
 from pathlib import Path
 
-from smolagents import CodeAgent, LiteLLMModel, LocalPythonExecutor, ManagedAgent
+from smolagents import CodeAgent, LiteLLMModel, LocalPythonExecutor
+
+# Try to import ManagedAgent - it may not be available in newer smolagents versions
+try:
+    from smolagents import ManagedAgent
+except ImportError:
+    ManagedAgent = None
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +104,9 @@ def get_jarvis_agent(user_prompt: str = ""):
     Returns:
         CodeAgent: Configured JARVIS brain with code execution capability
     """
+    if ManagedAgent is None:
+        logger.warning("ManagedAgent not available in smolagents - sub-agent delegation disabled")
+    
     # Import ConfigManager here to avoid circular imports
     from core.config_manager import config
     from core.chroma_memory import chroma_memory
@@ -171,17 +180,27 @@ def get_jarvis_agent(user_prompt: str = ""):
         )
     
     # Add execution and delegation capabilities
-    prompt_parts.append(
-        f"\n## CAPABILITIES\n"
-        f"You have access to a secure local Python execution environment. "
-        f"When given a complex task, write Python code to accomplish it, execute the code, "
-        f"analyze the output, and self-correct if needed.\n"
-        f"If the task requires research or complex multi-step work, delegate to your sub-agents:\n"
-        f"  - web_researcher: For web searches, documentation, and information gathering\n"
-        f"  - senior_engineer: For complex code writing, testing, and execution\n"
-        f"Always provide the final result to the user. "
-        f"Do not simulate results - actually execute the code."
-    )
+    if ManagedAgent is not None:
+        prompt_parts.append(
+            f"\n## CAPABILITIES\n"
+            f"You have access to a secure local Python execution environment. "
+            f"When given a complex task, write Python code to accomplish it, execute the code, "
+            f"analyze the output, and self-correct if needed.\n"
+            f"If the task requires research or complex multi-step work, delegate to your sub-agents:\n"
+            f"  - web_researcher: For web searches, documentation, and information gathering\n"
+            f"  - senior_engineer: For complex code writing, testing, and execution\n"
+            f"Always provide the final result to the user. "
+            f"Do not simulate results - actually execute the code."
+        )
+    else:
+        prompt_parts.append(
+            f"\n## CAPABILITIES\n"
+            f"You have access to a secure local Python execution environment. "
+            f"When given a complex task, write Python code to accomplish it, execute the code, "
+            f"analyze the output, and self-correct if needed.\n"
+            f"Always provide the final result to the user. "
+            f"Do not simulate results - actually execute the code."
+        )
     
     system_prompt = "\n\n".join(prompt_parts)
     
@@ -204,55 +223,69 @@ def get_jarvis_agent(user_prompt: str = ""):
     # Combine all tools
     all_tools = memory_tools + vision_tools
     
-    # 8a. Create sub-agents for multi-agent swarm
-    # Research Agent - for web searches and information gathering
-    research_agent = CodeAgent(
-        tools=[],
-        model=model,
-        add_base_tools=True,
-        prompt_templates={
-            "system_prompt": "You are a meticulous researcher. Find data, search the web, "
-            "read documentation, and summarize information accurately."
-        }
-    )
-    
-    # Coder Agent - for complex code writing and execution
-    coder_agent = CodeAgent(
-        tools=[],
-        model=model,
-        add_base_tools=True,
-        executor=LocalPythonExecutor(),
-        prompt_templates={
-            "system_prompt": "You are a senior Python developer. Write flawless code, "
-            "test it thoroughly, and ensure it runs without errors."
-        }
-    )
-    
-    # 8b. Wrap sub-agents in ManagedAgent classes
-    managed_researcher = ManagedAgent(
-        agent=research_agent,
-        name="web_researcher",
-        description="Call this agent when you need to search the internet, read documentation, or gather facts."
-    )
-    
-    managed_coder = ManagedAgent(
-        agent=coder_agent,
-        name="senior_engineer",
-        description="Call this agent when you need complex python scripts written, tested, or executed."
-    )
-    
-    # 9. Create the Orchestrator (JARVIS) with managed sub-agents
-    # add_base_tools=True gives web search and basic utilities
-    agent = CodeAgent(
-        tools=all_tools,
-        model=model,
-        add_base_tools=True,
-        managed_agents=[managed_researcher, managed_coder],
-        prompt_templates={
-            "system_prompt": system_prompt
-        },
-        executor=LocalPythonExecutor()  # Secure local sandbox
-    )
+    # Check if ManagedAgent is available
+    if ManagedAgent is not None:
+        # 8a. Create sub-agents for multi-agent swarm
+        # Research Agent - for web searches and information gathering
+        research_agent = CodeAgent(
+            tools=[],
+            model=model,
+            add_base_tools=True,
+            prompt_templates={
+                "system_prompt": "You are a meticulous researcher. Find data, search the web, "
+                "read documentation, and summarize information accurately."
+            }
+        )
+        
+        # Coder Agent - for complex code writing and execution
+        coder_agent = CodeAgent(
+            tools=[],
+            model=model,
+            add_base_tools=True,
+            executor=LocalPythonExecutor(),
+            prompt_templates={
+                "system_prompt": "You are a senior Python developer. Write flawless code, "
+                "test it thoroughly, and ensure it runs without errors."
+            }
+        )
+        
+        # 8b. Wrap sub-agents in ManagedAgent classes
+        managed_researcher = ManagedAgent(
+            agent=research_agent,
+            name="web_researcher",
+            description="Call this agent when you need to search the internet, read documentation, or gather facts."
+        )
+        
+        managed_coder = ManagedAgent(
+            agent=coder_agent,
+            name="senior_engineer",
+            description="Call this agent when you need complex python scripts written, tested, or executed."
+        )
+        
+        # 9. Create the Orchestrator (JARVIS) with managed sub-agents
+        # add_base_tools=True gives web search and basic utilities
+        agent = CodeAgent(
+            tools=all_tools,
+            model=model,
+            add_base_tools=True,
+            managed_agents=[managed_researcher, managed_coder],
+            prompt_templates={
+                "system_prompt": system_prompt
+            },
+            executor=LocalPythonExecutor()  # Secure local sandbox
+        )
+    else:
+        # ManagedAgent not available - create agent without sub-agents
+        logger.info("Creating CodeAgent without managed sub-agents")
+        agent = CodeAgent(
+            tools=all_tools,
+            model=model,
+            add_base_tools=True,
+            prompt_templates={
+                "system_prompt": system_prompt
+            },
+            executor=LocalPythonExecutor()  # Secure local sandbox
+        )
     
     # Log memory count
     try:
