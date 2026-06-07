@@ -20,13 +20,15 @@ youtube-transcript-api
 pywinauto
 python-pptx
 pyqt6
+pyside6
+pyqt6-tools
 
 # Wake Word Dependencies (optional - for always-listening mode)
 openwakeword
 pyaudio
 
 # System Tray (optional - alternative to pystray below)
-# pystray  # Already implemented in actions/tray_icon.py
+ pystray  # Already implemented in actions/tray_icon.py
 
 # Smolagents - Dynamic Code Execution Engine
 smolagents

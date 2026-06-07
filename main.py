@@ -1157,14 +1157,15 @@ class JarvisLive:
                 self.ui.set_state("THINKING")
                 config = self._build_config()
 
-                async with (
+async with (
                     client.aio.live.connect(model=LIVE_MODEL, config=config) as session,
                     asyncio.TaskGroup() as tg,
                 ):
                     self.session        = session
                     self._loop          = asyncio.get_event_loop()
-                    self.audio_in_queue = asyncio.Queue()
-                    self.out_queue      = asyncio.Queue(maxsize=10)
+                    # 1. Increase buffer size for high-speed Live API data
+                    self.audio_in_queue = asyncio.Queue(maxsize=500)
+                    self.out_queue      = asyncio.Queue(maxsize=500)
                     self._turn_done_event = asyncio.Event()
 
                     print("[JARVIS] ✅ Connected.")

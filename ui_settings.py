@@ -167,7 +167,7 @@ class SettingsDialog(QDialog):
         self.voice_engines = ["edge-tts", "elevenlabs", "mac_local"]
         self.voice_engine_combo.addItems(self.voice_engines)
         
-current_engine = config.get("voice_engine", "edge-tts")
+        current_engine = config.get("voice_engine", "edge-tts")
         if current_engine in self.voice_engines:
             self.voice_engine_combo.setCurrentIndex(self.voice_engines.index(current_engine))
             
@@ -204,7 +204,7 @@ current_engine = config.get("voice_engine", "edge-tts")
         self.llms = ["gemini-2.5-flash", "gemini-1.5-pro", "claude-3.5-sonnet", "gpt-4o"]
         self.llm_combo.addItems(self.llms)
         
-current_llm = config.get("llm_backend", "gemini-2.5-flash")
+        current_llm = config.get("llm_backend", "gemini-2.5-flash")
         if current_llm in self.llms:
             self.llm_combo.setCurrentIndex(self.llms.index(current_llm))
             
