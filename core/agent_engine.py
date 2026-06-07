@@ -27,7 +27,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-
 from smolagents import CodeAgent, LiteLLMModel, LocalPythonExecutor
 
 # Try to import ManagedAgent - it may not be available in newer smolagents versions
