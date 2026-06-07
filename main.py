@@ -674,7 +674,7 @@ TOOL_DECLARATIONS = [
             "required": ["action"]
         }
     },
-    {
+{
         "name": "signal_rank_bridge",
         "description": "Query SignalRankAI (trading brain) for portfolio, market analysis, and trading intelligence.",
         "parameters": {
@@ -685,6 +685,23 @@ TOOL_DECLARATIONS = [
                 "timeframe": {"type": "STRING", "description": "1h | 1d | 1w | 1m"}
             },
             "required": ["query"]
+        }
+    },
+    {
+        "name": "self_repair",
+        "description": "JARVIS self-repair system. Read, analyze, and patch own source code. Use for bug fixes, optimizations, and self-improvement.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "read | write | patch | analyze | status | list (default: read)"},
+                "file_key": {"type": "STRING", "description": "Key name: main, ui_settings, vision, agent, etc."},
+                "file_path": {"type": "STRING", "description": "Full path to file (e.g. actions/dev_agent.py)"},
+                "content": {"type": "STRING", "description": "New content for write action"},
+                "search_text": {"type": "STRING", "description": "Text to find for patch action"},
+                "replace_text": {"type": "STRING", "description": "Replacement text for patch action"},
+                "error": {"type": "STRING", "description": "Error message to analyze for suggest fix"}
+            },
+            "required": []
         }
     },
 ]
@@ -1002,6 +1019,11 @@ class JarvisLive:
             elif name == "signal_rank_bridge":
                 r = await loop.run_in_executor(None, lambda: signal_rank_bridge(parameters=args, player=self.ui))
                 result = r or "SignalRankAI query complete."
+
+            elif name == "self_repair":
+                from actions.self_repair import self_repair as sr
+                r = await loop.run_in_executor(None, lambda: sr(parameters=args, player=self.ui))
+                result = r or "Self-repair complete."
 
             else:
                 result = f"Unknown tool: {name}"
