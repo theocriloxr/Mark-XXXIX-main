@@ -1,31 +1,57 @@
 """
-Settings Dialog for JARVIS Configuration
+JARVIS Ultimate Settings Dialog
 
-A sleek, native Settings Dialog that directly hooks into your ConfigManager 
-and safely restarts background threads when needed.
+A comprehensive, adaptive Settings Dialog that controls all aspects
+of JARVIS including personality, voice, business features, and more.
 
 Features:
 - Wake Word configuration
-- Personality selection  
-- Voice Engine selection
+- Adaptive AI Personality (auto-selects best for task)
+- Voice customization
 - LLM Backend selection
-- Hot-swapping settings without restart
+- Business Suite configuration
+- Learning & Growth settings
+- Auto-improvement toggles
 
 Usage:
     from ui_settings import SettingsDialog
-    
-    dialog = SettingsDialog(parent, restart_wake_word_callback=my_callback)
+    dialog = SettingsDialog(parent)
     dialog.exec()
 """
 
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QComboBox, 
-    QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QLabel
-)
-from PySide6.QtCore import Qt
+import sys
+import os
 
-# Import the ConfigManager singleton
-from core.config_manager import config
+# Try PyQt6 first (project uses this)
+try:
+    from PyQt6.QtWidgets import (
+        QDialog, QVBoxLayout, QFormLayout, QComboBox, 
+        QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QLabel,
+        QCheckBox, QSpinBox, QGroupBox, QTabWidget, QWidget,
+        QTextEdit, QSlider, QProgressBar
+    )
+    from PyQt6.QtCore import Qt, QTimer
+    from PyQt6.QtGui import QColor
+    PYQT_IMPORTED = True
+except ImportError:
+    try:
+        from PySide6.QtWidgets import (
+            QDialog, QVBoxLayout, QFormLayout, QComboBox, 
+            QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QLabel,
+            QCheckBox, QSpinBox, QGroupBox, QTabWidget, QWidget,
+            QTextEdit, QSlider, QProgressBar
+        )
+        from PySide6.QtCore import Qt, QTimer
+        from PySide6.QtGui import QColor
+        PYQT_IMPORTED = True
+    except ImportError:
+        PYQT_IMPORTED = False
+
+# Import the ConfigManager singleton 
+try:
+    from core.config_manager import config
+except ImportError:
+        config = None
 
 
 class SettingsDialog(QDialog):

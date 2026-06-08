@@ -1238,10 +1238,15 @@ elif name == "venture_orchestrator":
                 r = await loop.run_in_executor(None, lambda: ei(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Emotional AI complete."
 
-            elif name == "trend_adapter":
+elif name == "trend_adapter":
                 from core.trend_adapter import trend_adapter as ta
                 r = await loop.run_in_executor(None, lambda: ta(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Trend adapter complete."
+
+            elif name == "polymorphic_core":
+                from core.polymorphic_core import polymorphic_core as pc
+                r = await loop.run_in_executor(None, lambda: pc(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Polymorphic core complete."
 
             else:
                 result = f"Unknown tool: {name}"

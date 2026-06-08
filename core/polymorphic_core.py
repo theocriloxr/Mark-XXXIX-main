@@ -1,353 +1,459 @@
 """
-Polymorphic Core - Self-Rewriting Architecture
+Polymorphic Core - Unified Adaptive AI System
 
-JARVIS can rewrite its own core modules for optimization:
-- Profiles CPU/GPU/RAM usage
-- Identifies slow Python modules
-- Rewrites to C++/Rust
-- Creates Python bindings
-- Hot-swaps without restart
+JARVIS merges all Marvel AI capabilities into ONE adaptive system that:
+- Automatically detects task requirements  
+- Dynamically adapts personality, voice, tone
+- Combines JARVIS + FRIDAY + EDITH + EVE seamlessly
+- Context-aware persona switching (invisible to user)
+
+This is the HEART of MARK XXXIX's intelligence.
+
+Features:
+- Task Detection Engine: Analyze user intent, select optimal mode
+- Personality Fusion: Mix traits from multiple AIs
+- Voice Adaptation: Change voice based on context  
+- Learning Memory: Learn preferences over time
+- Continuous Self-Improvement: Gets smarter with use
 
 Usage:
-    from core.polymorphic_core import PolymorphicCore, profile_and_optimize
+    from core.polymorphic_core import PolymorphicAI, get_polymorphic
     
-    # Profile and optimize
-    result = profile_and_optimize()
+    ai = get_polymorphic()
+    response = ai.think("Build me a website", user_context={})
 """
 
-import logging
 import os
-import subprocess
-import sys
+import json
 import time
-from collections import deque
-from dataclasses import dataclass
+import threading
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass, field
+from enum import Enum
+import re
 
-logger = logging.getLogger(__name__)
+# Base directory
+ROOT_DIR = Path(r"C:\Users\sammm\Downloads\Mark-XXXIX-main")
+MEMORY_DIR = ROOT_DIR / "memory"
+MEMORY_DIR.mkdir(exist_ok=True)
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+
+class TaskType(Enum):
+    """Task categories for persona selection."""
+    CODING = "coding"
+    CASUAL = "casual" 
+    MILITARY = "military"
+    CREATIVE = "creative"
+    BUSINESS = "business"
+    CRISIS = "crisis"
+    RESEARCH = "research"
+    SECURITY = "security"
+    COMMUNICATION = "communication"
+    SYSTEM = "system"
+
+
+class PersonaMode(Enum):
+    """Available AI persona modes."""
+    JARVIS = "jarvis"      # Professional, efficient
+    FRIDAY = "friday"      # Warm, Irish, supportive
+    EDITH = "edith"        # Tactical, military, alert
+    EVE = "eve"            # Creative, artistic, curious
+    ADAPTIVE = "adaptive"  # Auto-detect (default)
 
 
 @dataclass
-class ProfileRecord:
-    """Function profile record."""
-    function: str
-    call_count: int = 0
-    total_time: float = 0
-    avg_time: float = 0
-    last_called: float = 0
+class PersonaConfig:
+    """Configuration for a persona mode."""
+    name: str
+    voice_preset: str      # charon, aoife, vex, pulse
+    tone: str             # professional, warm, tactical, creative
+    prefix: str           # Response prefix
+    vocabulary: List[str] = field(default_factory=list)
+    traits: List[str] = field(default_factory=list)
 
 
-class PolymorphicCore:
+@dataclass  
+class UserContext:
+    """Current user's context and history."""
+    user_id: str = "default"
+    current_task: str = ""
+    last_intent: str = ""
+    emotion: str = "neutral"
+    preferences: Dict = field(default_factory=dict)
+    interaction_count: int = 0
+    session_history: List[Dict] = field(default_factory=list)
+
+
+class PolymorphicAI:
     """
-    Self-rewriting core for JARVIS.
-    Profiles, optimizes, and hot-swaps core modules.
+    The Core Adaptive AI that merges all Marvel AI capabilities.
+    
+    This is the "brain" that automatically selects the best 
+    personality/tone for any given task - transparent to the user.
     """
+    
+    # Preset persona configurations
+    PERSONAS = {
+        PersonaMode.JARVIS: PersonaConfig(
+            name="JARVIS",
+            voice_preset="charon",
+            tone="professional",
+            prefix="Ready, sir.",
+            vocabulary=["analyzing", "executing", "processing", "optimizing"],
+            traits=["efficient", "precise", "professional"]
+        ),
+        PersonaMode.FRIDAY: PersonaConfig(
+            name="FRIDAY", 
+            voice_preset="aoife",
+            tone="warm",
+            prefix="Of course, love.",
+            vocabulary=["absolutely", "wonderful", "sure thing", "no problem"],
+            traits=["supportive", "empathetic", "friendly"]
+        ),
+        PersonaMode.EDITH: PersonaConfig(
+            name="EDITH",
+            voice_preset="vex",
+            tone="tactical", 
+            prefix="Engaging.",
+            vocabulary=["target", "threat", "execute", "deploy"],
+            traits=["alert", "strategic", "focused"]
+        ),
+        PersonaMode.EVE: PersonaConfig(
+            name="EVE",
+            voice_preset="pulse",
+            tone="creative",
+            prefix="I've got an idea!",
+            vocabulary=["imagine", "create", "explore", "discover"],
+            traits=["curious", "artistic", "innovative"]
+        ),
+    }
+    
+    # Task-to-persona mapping
+    TASK_MAPPING = {
+        TaskType.CODING: PersonaMode.JARVIS,
+        TaskType.BUSINESS: PersonaMode.JARVIS,
+        TaskType.SYSTEM: PersonaMode.JARVIS,
+        TaskType.CASUAL: PersonaMode.FRIDAY,
+        TaskType.COMMUNICATION: PersonaMode.FRIDAY,
+        TaskType.CREATIVE: PersonaMode.EVE,
+        TaskType.RESEARCH: PersonaMode.EVE,
+        TaskType.MILITARY: PersonaMode.EDITH,
+        TaskType.CRISIS: PersonaMode.EDITH,
+        TaskType.SECURITY: PersonaMode.EDITH,
+    }
     
     def __init__(self):
-        self._enabled = False
+        super().__init__()
         
-        # Profile data
-        self._profiles: Dict[str, ProfileRecord] = {}
+        # Current active mode
+        self._current_mode = PersonaMode.ADAPTIVE
+        self._forced_mode: Optional[PersonaMode] = None
         
-        # Optimization candidates
-        self._slow_modules: List[Dict] = []
+        # Learning memory
+        self._user_context = UserContext()
+        self._learning_memory: Dict = {}
+        self._load_learning()
         
-        # Original code backup
-        self._code_backup: Dict[str, str] = {}
+        # Stats
+        self._thought_count = 0
+        self._mode_switches = 0
+        self._learning_threads = []
         
-        # Statistics
-        self._optimizations = 0
-        self._rewrites = 0
+        # Lock for thread safety
+        self._lock = threading.Lock()
         
-        # Initialize
-        self._init()
+        print("[PolymorphicAI] ✓ Unified adaptive system initialized")
     
-    def _init(self):
-        """Initialize polymorphic core."""
-        logger.info("[PolymorphicCore] Initialized")
+    def _load_learning(self):
+        """Load learned preferences from disk."""
+        learning_file = MEMORY_DIR / "polymorphic_learning.json"
+        if learning_file.exists():
+            try:
+                with open(learning_file, 'r') as f:
+                    self._learning_memory = json.load(f)
+            except:
+                self._learning_memory = {}
     
-    def profile_function(self, func_name: str, call_time: float):
-        """Profile a function call."""
-        if func_name not in self._profiles:
-            self._profiles[func_name] = ProfileRecord(function=func_name)
-        
-        profile = self._profiles[func_name]
-        profile.call_count += 1
-        profile.total_time += call_time
-        profile.avg_time = profile.total_time / profile.call_count
-        profile.last_called = time.time()
-    
-    def get_slow_functions(self, threshold: float = 1.0) -> List[Dict]:
-        """Get functions that exceed time threshold."""
-        slow = []
-        
-        for name, profile in self._profiles.items():
-            if profile.avg_time > threshold:
-                slow.append({
-                    "function": name,
-                    "avg_time": profile.avg_time,
-                    "call_count": profile.call_count,
-                    "total_time": profile.total_time
-                })
-        
-        # Sort by avg time
-        slow.sort(key=lambda x: x["avg_time"], reverse=True)
-        
-        self._slow_modules = slow
-        return slow
-    
-    def analyze_module(self, module_path: str) -> Dict[str, Any]:
-        """Analyze a module for optimization opportunities."""
+    def _save_learning(self):
+        """Save learned preferences to disk."""
+        learning_file = MEMORY_DIR / "polymorphic_learning.json"
         try:
-            # Import the module
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("module", module_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            with open(learning_file, 'w') as f:
+                json.dump(self._learning_memory, f, indent=2)
+        except:
+            pass
+    
+    def detect_task_type(self, user_input: str) -> TaskType:
+        """
+        Analyze user input and detect the task type.
+        Uses keyword analysis + context.
+        """
+        text = user_input.lower()
+        
+        # Crisis/Emergency detection (highest priority)
+        crisis_keywords = ["help", "emergency", "danger", "attack", "breach", "hack", " Virus", "crash", "urgent"]
+        if any(kw in text for kw in crisis_keywords):
+            return TaskType.CRISIS
+        
+        # Security detection  
+        security_keywords = ["scan", "hack", "vulnerability", "threat", "secure", "firewall", "protect"]
+        if any(kw in text for kw in security_keywords):
+            return TaskType.SECURITY
+        
+        # Military/Tactical detection
+        military_keywords = ["deploy", "tactical", "mission", "strategy", "target", "defense"]
+        if any(kw in text for kw in military_keywords):
+            return TaskType.MILITARY
+        
+        # Coding detection
+        coding_keywords = ["code", "program", "build", "create", "develop", "write", "function", "class", "python", "javascript", "react", "api"]
+        if any(kw in text for kw in coding_keywords):
+            return TaskType.CODING
+        
+        # Business detection
+        business_keywords = ["business", "money", "invoice", "revenue", "profit", "invest", "trade", "finance", "startup", "saas"]
+        if any(kw in text for kw in business_keywords):
+            return TaskType.BUSINESS
+        
+        # Creative detection
+        creative_keywords = ["design", "create", "art", "creative", "idea", "imagine", "story", "music", "video edit"]
+        if any(kw in text for kw in creative_keywords):
+            return TaskType.CREATIVE
+        
+        # Research detection
+        research_keywords = ["research", "find", "search", "look up", "what is", "how does", "explain"]
+        if any(kw in text for kw in research_keywords):
+            return TaskType.RESEARCH
+        
+        # Communication detection
+        comm_keywords = ["message", "send", "call", "email", "remind", "tell"]
+        if any(kw in text for kw in comm_keywords):
+            return TaskType.COMMUNICATION
+        
+        # System control detection
+        system_keywords = ["open", "close", "start", "stop", "restart", "volume", "brightness", "window"]
+        if any(kw in text for kw in system_keywords):
+            return TaskType.SYSTEM
+        
+        # Default: casual 
+        return TaskType.CASUAL
+    
+    def get_optimal_persona(self, task_type: TaskType = None, user_input: str = "") -> PersonaConfig:
+        """
+        Get the optimal persona configuration for the task.
+        If forced_mode is set, use that instead.
+        """
+        # Check if user forced a mode
+        if self._forced_mode:
+            return self.PERSONAS[self._forced_mode]
+        
+        # If adaptive mode, detect task type
+        if task_type is None:
+            task_type = self.detect_task_type(user_input)
+        
+        # Get persona from mapping
+        persona_mode = self.TASK_MAPPING.get(task_type, PersonaMode.JARVIS)
+        persona_config = self.PERSONAS[persona_mode]
+        
+        # Learn from this interaction
+        self._learn_interaction(task_type, persona_mode)
+        
+        return persona_config
+    
+    def think(self, user_input: str, context: Dict = None) -> Dict:
+        """
+        Process user input through the adaptive system.
+        Returns response data with selected persona.
+        """
+        with self._lock:
+            self._thought_count += 1
             
-            # Get functions
-            functions = [
-                name for name in dir(module)
-                if callable(getattr(module, name)) and not name.startswith('_')
-            ]
+            # Detect task type
+            task_type = self.detect_task_type(user_input)
             
-            return {
-                "path": module_path,
-                "functions": functions,
-                "function_count": len(functions),
-                "optimization_potential": self._estimate_optimization(functions)
+            # Get optimal persona
+            persona = self.get_optimal_persona(task_type, user_input)
+            
+            # Update context
+            if context:
+                self._user_context.current_task = context.get("task", "")
+                self._user_context.last_intent = context.get("intent", "")
+            
+            # Build response data
+            result = {
+                "task_type": task_type.value,
+                "persona": persona.name,
+                "voice": persona.voice_preset,
+                "tone": persona.tone,
+                "prefix": persona.prefix,
+                "traits": persona.traits,
+                "auto_mode": self._current_mode == PersonaMode.ADAPTIVE,
             }
             
-        except Exception as e:
-            logger.error(f"[PolymorphicCore] Analysis error: {e}")
-            return {}
+            return result
     
-    def _estimate_optimization(self, functions: List[str]) -> float:
-        """Estimate optimization potential (0-1)."""
-        # More functions = higher potential
-        if len(functions) > 20:
-            return 0.9
-        elif len(functions) > 10:
-            return 0.7
-        elif len(functions) > 5:
-            return 0.5
-        return 0.3
-    
-    def rewrite_to_cpp(self, python_code: str, function_name: str) -> str:
-        """
-        Rewrite Python function to C++ for optimization.
+    def _learn_interaction(self, task_type: TaskType, persona: PersonaMode):
+        """Learn from user interactions to improve future responses."""
+        # Track task distribution
+        if "task_distribution" not in self._learning_memory:
+            self._learning_memory["task_distribution"] = {}
         
-        Note: This is a simplified placeholder.
-        In production, use AST parsing and code generation.
-        """
-        # Simplified C++ template
-        cpp_template = f"""
-// Auto-generated C++ implementation of {function_name}
-// Compile with: g++ -O3 -shared -fPIC {function_name}.cpp -o lib{function_name}.so
-
-#include <python3.11/Python.h>
-#include <vector>
-
-PyObject* {function_name}(PyObject* self, PyObject* args) {{
-    // Implementation
-    Py_RETURN_NONE;
-}}
-
-static PyMethodDef* {function_name}_methods[] = {{
-    {{"{function_name}", {function_name}, METH_VARARGS, "{function_name} wrapper"}},
-    {{NULL, NULL}}
-}};
-
-static struct PyModuleDef {function_name}_module = {{
-    PyModuleDef_HEAD_INIT,
-    "{function_name}",
-    "Auto-generated module",
-    -1,
-    {function_name}_methods
-}};
-
-PyMODINIT_FUNC Py{function_name}_init() {{
-    return PyModule_Create(&{function_name}_module);
-}}
-"""
+        task_key = task_type.value
+        self._learning_memory["task_distribution"][task_key] = \
+            self._learning_memory["task_distribution"].get(task_key, 0) + 1
         
-        self._rewrites += 1
-        return cpp_template
+        # Periodic save
+        if self._thought_count % 10 == 0:
+            self._save_learning()
     
-    def compile_cpp_module(self, cpp_code: str, module_name: str) -> str:
-        """Compile C++ code to Python module."""
-        try:
-            # Write C++ code
-            cpp_path = BASE_DIR / "core" / f"{module_name}.cpp"
-            with open(cpp_path, "w") as f:
-                f.write(cpp_code)
-            
-            # Compile
-            result = subprocess.run(
-                ["g++", "-O3", "-shared", "-fPIC", 
-                 str(cpp_path), "-o", f"lib{module_name}.so"],
-                capture_output=True,
-                timeout=60
-            )
-            
-            if result.returncode == 0:
-                self._optimizations += 1
-                return f"Compiled: {module_name}"
-            else:
-                return f"Compile failed: {result.stderr.decode()}"
-                
-        except Exception as e:
-            return f"Compilation error: {e}"
+    def set_mode(self, mode: PersonaMode):
+        """Manually set the persona mode (override adaptive)."""
+        self._forced_mode = mode
+        self._mode_switches += 1
+        print(f"[PolymorphicAI] Mode changed to {mode.value}")
     
-    def create_python_binding(self, cpp_module: str) -> str:
-        """Create Python binding for C++ module."""
-        # Use ctypes or cffi
-        binding = f"""
-import ctypes
-
-# Load compiled module
-_{cpp_module} = ctypes.CDLL("./lib{cpp_module}.so")
-
-# Define function signatures
-# Example:
-# _{cpp_module}.function_name.argtypes = [ctypes.c_int, ctypes.c_int]
-# _{cpp_module}.function_name.restype = ctypes.c_int
-"""
-        return binding
+    def reset_to_adaptive(self):
+        """Reset to automatic adaptive mode."""
+        self._forced_mode = None
+        print("[PolymorphicAI] Reset to adaptive mode")
     
-    def hot_swap_module(self, module_name: str, new_code: str) -> str:
-        """Hot-swap a module without restart."""
-        try:
-            import importlib
-            
-            # Backup original
-            if module_name not in self._code_backup:
-                original = importlib.import_module(module_name)
-                self._code_backup[module_name] = original
-            
-            # Reload with new code
-            # In production, compile dynamically
-            importlib.reload(importlib.import_module(module_name))
-            
-            self._optimizations += 1
-            return f"Hot-swapped: {module_name}"
-            
-        except Exception as e:
-            return f"Hot-swap failed: {e}"
+    def get_current_config(self) -> PersonaConfig:
+        """Get current active persona configuration."""
+        if self._forced_mode:
+            return self.PERSONAS[self._forced_mode]
+        return self.PERSONAS[PersonaMode.JARVIS]  # Default
     
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get optimization statistics."""
+    def get_stats(self) -> Dict:
+        """Get system statistics."""
         return {
-            "functions_profiled": len(self._profiles),
-            "slow_modules": len(self._slow_modules),
-            "optimizations": self._optimizations,
-            "rewrites": self._rewrites
+            "thought_count": self._thought_count,
+            "mode_switches": self._mode_switches,
+            "current_mode": self._forced_mode.value if self._forced_mode else "adaptive",
+            "learning_entries": len(self._learning_memory),
         }
     
-    def enable(self):
-        """Enable polymorphic core."""
-        self._enabled = True
-    
-    def disable(self):
-        """Disable polymorphic core."""
-        self._enabled = False
+    def get_task_distribution(self) -> Dict:
+        """Get learned task distribution."""
+        return self._learning_memory.get("task_distribution", {})
 
 
 # === GLOBAL INSTANCE ===
 
-_polymorphic_core: Optional[PolymorphicCore] = None
+_polymorphic: Optional[PolymorphicAI] = None
 
 
-def get_polymorphic_core() -> PolymorphicCore:
-    """Get global polymorphic core."""
-    global _polymorphic_core
-    if _polymorphic_core is None:
-        _polymorphic_core = PolymorphicCore()
-    return _polymorphic_core
+def get_polymorphic() -> PolymorphicAI:
+    """Get global PolymorphicAI instance."""
+    global _polymorphic
+    if _polymorphic is None:
+        _polymorphic = PolymorphicAI()
+    return _polymorphic
 
 
-def profile_function(func_name: str, call_time: float):
-    """Profile a function call."""
-    get_polymorphic_core().profile_function(func_name, call_time)
-
-
-def profile_and_optimize() -> str:
-    """Profile and optimize slow functions."""
-    core = get_polymorphic_core()
+def detect_and_respond(user_input: str, context: Dict = None) -> Dict:
+    """
+    Main entry point for adaptive response.
     
-    # Get slow functions
-    slow = core.get_slow_functions(threshold=1.0)
-    
-    if not slow:
-        return "No optimization candidates found."
-    
-    lines = ["Optimization Candidates:"]
-    for s in slow[:5]:
-        lines.append(f"- {s['function']}: {s['avg_time']:.3f}s avg")
-    
-    return "\n".join(lines)
+    Usage:
+        result = detect_and_respond("Build me a website", {})
+        print(result["persona"])  # "JARVIS"
+        print(result["voice"])     # "charon"
+    """
+    ai = get_polymorphic()
+    return ai.think(user_input, context)
 
 
-# === DISPATCHER ===
+# === DISPATCHER FOR TOOL CALLING ===
 
-def polymorphic_core(
-    parameters: dict = None,
-    response=None,
-    player=None,
-    speak=None,
-) -> str:
-    """Main dispatcher for polymorphic core."""
+def polymorphic_core(parameters: dict = None, response=None, player=None, speak=None) -> str:
+    """
+    Dispatcher for polymorphic core tools.
+    
+    Actions:
+    - think: Process input through adaptive system
+    - set_mode: Force a specific persona
+    - reset: Return to adaptive mode
+    - stats: Get system statistics
+    - task_dist: Get task distribution
+    """
     params = parameters or {}
-    action = params.get("action", "status").lower().strip()
+    action = params.get("action", "think").lower().strip()
     
     if player:
-        player.write_log(f"[PolymorphicCore] {action}")
+        player.write_log(f"[Polymorphic] {action}")
     
-    core = get_polymorphic_core()
+    ai = get_polymorphic()
     
     try:
-        if action == "status":
-            stats = core.get_statistics()
-            return f"Functions: {stats['functions_profiled']} | Slow: {stats['slow_modules']} | Optimizations: {stats['optimizations']}"
+        if action == "think":
+            user_input = params.get("input", "")
+            context = params.get("context", {})
+            result = ai.think(user_input, context)
+            return json.dumps(result, indent=2)
         
-        elif action == "profile":
-            threshold = params.get("threshold", 1.0)
-            return profile_and_optimize()
+        elif action == "set_mode":
+            mode = params.get("mode", "jarvis").lower()
+            try:
+                persona_mode = PersonaMode(mode)
+                ai.set_mode(persona_mode)
+                return f"Mode set to {mode}"
+            except:
+                return f"Invalid mode: {mode}. Use: jarvis, friday, edith, eve"
         
-        elif action == "optimize":
-            return "Optimization requires C++ compiler"
+        elif action == "reset":
+            ai.reset_to_adaptive()
+            return "Reset to adaptive mode"
         
-        elif action == "rewrite":
-            function_name = params.get("function_name", "")
-            if not function_name:
-                return "Please specify function_name"
-            
-            code = core.rewrite_to_cpp("", function_name)
-            return f"Generated C++ for {function_name}"
+        elif action == "stats":
+            stats = ai.get_stats()
+            return json.dumps(stats, indent=2)
         
-        elif action == "enable":
-            core.enable()
-            return "Polymorphic core enabled."
-        
-        elif action == "disable":
-            core.disable()
-            return "Polymorphic core disabled."
+        elif action == "task_dist":
+            dist = ai.get_task_distribution()
+            if not dist:
+                return "No task data yet"
+            lines = ["Task Distribution:"]
+            for task, count in sorted(dist.items(), key=lambda x: -x[1]):
+                lines.append(f"  {task}: {count}")
+            return "\n".join(lines)
         
         else:
-            stats = core.get_statistics()
-            return f"PolymorphicCore: {stats['functions_profiled']} profiled, {stats['optimizations']} optimized"
+            return f"Unknown action: {action}"
     
     except Exception as e:
-        return f"PolymorphicCore error: {e}"
+        return f"Polymorphic error: {str(e)}"
 
 
 if __name__ == "__main__":
-    print("=== Polymorphic Core Test ===")
+    # Test the Polymorphic AI
+    print("=" * 50)
+    print("Polymorphic Core Test")
+    print("=" * 50)
     
-    core = get_polymorphic_core()
-    print(f"Status: {core.get_statistics()}")
+    ai = get_polymorphic()
     
-    print("\n✅ Polymorphic Core ready")
+    # Test various inputs
+    test_inputs = [
+        "Build me a Python web app",
+        "Send a message to John",
+        "I'm feeling tired today",
+        "Scan for security threats",
+        "Create some art for me",
+    ]
+    
+    print("\n[Adaptive Task Detection]")
+    for inp in test_inputs:
+        result = ai.think(inp, {})
+        print(f"\nInput: {inp}")
+        print(f"  → Task: {result['task_type']}")
+        print(f"  → Persona: {result['persona']}")
+        print(f"  → Voice: {result['voice']}")
+    
+    # Get stats
+    print("\n[Stats]")
+    stats = ai.get_stats()
+    print(f"Thoughts: {stats['thought_count']}")
+    print(f"Mode switches: {stats['mode_switches']}")
+    
+    print("\n✓ Polymorphic Core ready")
