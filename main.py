@@ -1198,7 +1198,7 @@ class JarvisLive:
                 r = await loop.run_in_executor(None, lambda: ujo_network(parameters=args, player=self.ui))
                 result = r or "Ujo daemon routing complete."
 
-elif name == "signal_rank_bridge":
+            elif name == "signal_rank_bridge":
                 r = await loop.run_in_executor(None, lambda: signal_rank_bridge(parameters=args, player=self.ui))
                 result = r or "SignalRankAI query complete."
 
@@ -1222,7 +1222,7 @@ elif name == "signal_rank_bridge":
                 r = await loop.run_in_executor(None, lambda: cs(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Cyber audit complete."
 
-elif name == "venture_orchestrator":
+            elif name == "venture_orchestrator":
                 from actions.venture_orchestrator import venture_orchestrator as vo
                 r = await loop.run_in_executor(None, lambda: vo(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Venture Orchestrator complete."
@@ -1248,7 +1248,7 @@ elif name == "venture_orchestrator":
                 r = await loop.run_in_executor(None, lambda: ei(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Emotional AI complete."
 
-elif name == "trend_adapter":
+            elif name == "trend_adapter":
                 from core.trend_adapter import trend_adapter as ta
                 r = await loop.run_in_executor(None, lambda: ta(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Trend adapter complete."
@@ -1410,9 +1410,9 @@ elif name == "trend_adapter":
             try:
                 print("[JARVIS] 🔌 Connecting...")
                 self.ui.set_state("THINKING")
-config = self._build_config()
+                config = self._build_config()
 
-                    async with (
+                async with (
                         client.aio.live.connect(model=LIVE_MODEL, config=config) as session,
                         asyncio.TaskGroup() as tg,
                     ):
