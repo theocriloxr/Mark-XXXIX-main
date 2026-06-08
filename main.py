@@ -765,7 +765,7 @@ TOOL_DECLARATIONS = [
             "required": []
         }
     },
-    {
+{
         "name": "venture_orchestrator",
         "description": (
             "JARVIS Venture Orchestrator - Revenue generation stream manager. "
@@ -779,6 +779,99 @@ TOOL_DECLARATIONS = [
                 "venture": {"type": "STRING", "description": "Venture type: arbitrage, saas, freelance, defi"},
                 "target": {"type": "STRING", "description": "Target market or sector"},
                 "auto_start": {"type": "BOOLEAN", "description": "Auto-start venture"}
+            },
+            "required": []
+        }
+    },
+    # === MARVEL AI TOOLS ===
+    {
+        "name": "marvel_connector",
+        "description": (
+            "Switch between Marvel AI personalities: JARVIS (original), FRIDAY (warm Irish AI), EDITH (military), EVE (drone). "
+            "Use to change AI personality, get status, or list capabilities. "
+            "Each AI has unique voice, personality, and specialized capabilities."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "switch | current | status | list | info | capabilities (default: status)"},
+                "ai": {"type": "STRING", "description": "AI name: jarvis, friday, edith, or eve"},
+                "command": {"type": "STRING", "description": "Command for specific AI"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "voice_morphing",
+        "description": (
+            "Control JARVIS voice characteristics: pitch, speed, volume, accent, and gender. "
+            "Use presets like 'deep', 'fast', 'whisper', 'broadcast', 'friday', 'edith'. "
+            "This changes how JARVIS speaks, not what he says."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "set | apply | get | list (default: get)"},
+                "pitch": {"type": "NUMBER", "description": "Pitch 0.5-2.0 (default: 1.0)"},
+                "speed": {"type": "NUMBER", "description": "Speed 0.5-2.0 (default: 1.0)"},
+                "volume": {"type": "NUMBER", "description": "Volume 0.0-1.0 (default: 1.0)"},
+                "accent": {"type": "STRING", "description": "Accent: american, british, irish, australian, indian"},
+                "gender": {"type": "STRING", "description": "Gender: male, female, neutral"},
+                "preset": {"type": "STRING", "description": "Preset: deep, fast, whisper, broadcast, friday, edith"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "identity_engine",
+        "description": (
+            "Change JARVIS identity: name, voice, personality, protocol level. "
+            "Use to rebrand JARVIS to any name (HOMER, TARS, etc.) "
+            "or set personality mode: professional, casual, military."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "set_name | set_voice | set_personality | set_protocol | get | status"},
+                "name": {"type": "STRING", "description": "New name for JARVIS (e.g. 'HOMER', 'TARS')"},
+                "voice": {"type": "STRING", "description": "Voice preset: charon, aoife, vex, pulse"},
+                "personality": {"type": "STRING", "description": "Personality: professional, casual, military"},
+                "protocol": {"type": "STRING", "description": "Protocol level: Mk1-Mk100"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "emotional_ai",
+        "description": (
+            "Detect and respond to user emotions. JARVIS can detect mood from text "
+            "and adapt his response tone. Use for empathetic interactions."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "detect | respond | adapt | status (default: status)"},
+                "text": {"type": "STRING", "description": "Text to analyze for mood detection"},
+                "mood": {"type": "STRING", "description": "Mood: frustrated, happy, excited, tired, etc."},
+                "response": {"type": "STRING", "description": "Base response to adapt"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "trend_adapter",
+        "description": (
+            "Track technology trends, AI models, and framework versions. "
+            "JARVIS stays updated with latest tech. Use to add, list, or check trend status."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "add | list | check | update | status"},
+                "name": {"type": "STRING", "description": "Trend name (e.g. 'GPT-5', 'Claude 4')"},
+                "category": {"type": "STRING", "description": "Category: ai, framework, tool, language"},
+                "version": {"type": "STRING", "description": "Version string"},
+                "notes": {"type": "STRING", "description": "Additional notes"}
             },
             "required": []
         }
@@ -1119,10 +1212,36 @@ elif name == "signal_rank_bridge":
                 r = await loop.run_in_executor(None, lambda: cs(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Cyber audit complete."
 
-            elif name == "venture_orchestrator":
+elif name == "venture_orchestrator":
                 from actions.venture_orchestrator import venture_orchestrator as vo
                 r = await loop.run_in_executor(None, lambda: vo(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Venture Orchestrator complete."
+
+            # === MARVEL AI TOOL HANDLERS ===
+            elif name == "marvel_connector":
+                from actions.marvel_connector import marvel_connector as mc
+                r = await loop.run_in_executor(None, lambda: mc(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Marvel connector complete."
+
+            elif name == "voice_morphing":
+                from core.voice_morphing import voice_morphing as vm
+                r = await loop.run_in_executor(None, lambda: vm(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Voice morphing complete."
+
+            elif name == "identity_engine":
+                from core.identity_engine import identity_engine as ie
+                r = await loop.run_in_executor(None, lambda: ie(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Identity engine complete."
+
+            elif name == "emotional_ai":
+                from core.emotional_intelligence import emotional_ai as ei
+                r = await loop.run_in_executor(None, lambda: ei(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Emotional AI complete."
+
+            elif name == "trend_adapter":
+                from core.trend_adapter import trend_adapter as ta
+                r = await loop.run_in_executor(None, lambda: ta(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Trend adapter complete."
 
             else:
                 result = f"Unknown tool: {name}"
