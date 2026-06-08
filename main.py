@@ -55,7 +55,7 @@ def get_base_dir():
 BASE_DIR        = get_base_dir()
 API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 PROMPT_PATH     = BASE_DIR / "core" / "prompt.txt"
-LIVE_MODEL          = "models/gemini-2.5-flash-native-audio-preview-12-2025"
+LIVE_MODEL          = "models/gemini-3.1-pro"
 CHANNELS            = 1
 SEND_SAMPLE_RATE    = 16000
 RECEIVE_SAMPLE_RATE = 24000
@@ -687,7 +687,7 @@ TOOL_DECLARATIONS = [
             "required": ["query"]
         }
     },
-    {
+{
         "name": "self_repair",
         "description": "JARVIS self-repair system. Read, analyze, and patch own source code. Use for bug fixes, optimizations, and self-improvement.",
         "parameters": {
@@ -700,6 +700,85 @@ TOOL_DECLARATIONS = [
                 "search_text": {"type": "STRING", "description": "Text to find for patch action"},
                 "replace_text": {"type": "STRING", "description": "Replacement text for patch action"},
                 "error": {"type": "STRING", "description": "Error message to analyze for suggest fix"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "venture_forge",
+        "description": (
+            "JARVIS Venture Forge - Build entire business codebases from scratch. "
+            "Use to scaffold full codebases: React frontend + FastAPI backend + Docker config. "
+            "Can generate complete SaaS, E-commerce, Portfolio projects with legal documents."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "forge | generate | legal | list (default: forge)"},
+                "root_name": {"type": "STRING", "description": "Name of the root project folder"},
+                "structure": {"type": "OBJECT", "description": "Dict mapping file paths to content"},
+                "project_name": {"type": "STRING", "description": "Name of the venture"},
+                "venture_type": {"type": "STRING", "description": "Type: SaaS, E-commerce, Portfolio, etc."},
+                "description": {"type": "STRING", "description": "Business description"},
+                "framework": {"type": "STRING", "description": "Preferred framework (auto, fastapi, django, react)"},
+                "document_type": {"type": "STRING", "description": "Legal doc: Terms of Service, Privacy Policy, NDA"},
+                "company_name": {"type": "STRING", "description": "Company name for legal document"},
+                "jurisdiction": {"type": "STRING", "description": "Legal jurisdiction"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "self_evolution",
+        "description": (
+            "JARVIS Self-Evolution Engine - Identify, analyze, and improve own source code. "
+            "Use for self-refactoring, reading own code, security scanning, and auto-patching. "
+            "JARVIS can read, analyze, refactor, and patch his own source files."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "read | analyze | refactor | patch | security | list | status (default: read)"},
+                "file_key": {"type": "STRING", "description": "File to analyze (e.g. main, ui_settings, actions/dev_agent)"},
+                "file_path": {"type": "STRING", "description": "Full path to file"},
+                "improvement": {"type": "STRING", "description": "Description of what to improve"},
+                "search_text": {"type": "STRING", "description": "Text to find for patch"},
+                "replace_text": {"type": "STRING", "description": "Replacement text for patch"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "cyber_sentinel",
+        "description": (
+            "JARVIS Cyber Sentinel - Local cybersecurity audit and defense. "
+            "Monitor for unauthorized access, suspicious processes, open ports, and network vulnerabilities. "
+            "Can detect high-risk ports, malware, and resource exhaustion."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "audit | secure | threats | ports | processes (default: audit)"},
+                "target": {"type": "STRING", "description": "Target to scan (network, processes, ports)"},
+                "auto_fix": {"type": "BOOLEAN", "description": "Auto-fix detected threats"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "venture_orchestrator",
+        "description": (
+            "JARVIS Venture Orchestrator - Revenue generation stream manager. "
+            "Manage multiple business ventures: Arbitrage, SaaS Micro-Agency, Freelance, DeFi Yield. "
+            "Monitor sectors, pivot based on market data, and scale successful ventures."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING", "description": "init | status | pivot | sectors | deploy (default: status)"},
+                "venture": {"type": "STRING", "description": "Venture type: arbitrage, saas, freelance, defi"},
+                "target": {"type": "STRING", "description": "Target market or sector"},
+                "auto_start": {"type": "BOOLEAN", "description": "Auto-start venture"}
             },
             "required": []
         }
@@ -1016,7 +1095,7 @@ class JarvisLive:
                 r = await loop.run_in_executor(None, lambda: ujo_network(parameters=args, player=self.ui))
                 result = r or "Ujo daemon routing complete."
 
-            elif name == "signal_rank_bridge":
+elif name == "signal_rank_bridge":
                 r = await loop.run_in_executor(None, lambda: signal_rank_bridge(parameters=args, player=self.ui))
                 result = r or "SignalRankAI query complete."
 
@@ -1024,6 +1103,26 @@ class JarvisLive:
                 from actions.self_repair import self_repair as sr
                 r = await loop.run_in_executor(None, lambda: sr(parameters=args, player=self.ui))
                 result = r or "Self-repair complete."
+
+            elif name == "venture_forge":
+                from actions.venture_forge import venture_forge as vf
+                r = await loop.run_in_executor(None, lambda: vf(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Venture Forge complete."
+
+            elif name == "self_evolution":
+                from actions.self_evolution import self_evolution as se
+                r = await loop.run_in_executor(None, lambda: se(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Self-evolution complete."
+
+            elif name == "cyber_sentinel":
+                from actions.cyber_sentinel import cyber_sentinel as cs
+                r = await loop.run_in_executor(None, lambda: cs(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Cyber audit complete."
+
+            elif name == "venture_orchestrator":
+                from actions.venture_orchestrator import venture_orchestrator as vo
+                r = await loop.run_in_executor(None, lambda: vo(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Venture Orchestrator complete."
 
             else:
                 result = f"Unknown tool: {name}"

@@ -6,7 +6,7 @@
     "voice_id": "Charon",
     "voice_speed": 1.0,
     "voice_pitch": 0,
-    "llm_backend": "gemini-2.5-flash",
+    "llm_backend": "gemini-3.1-pro",
     "model_temperature": 0.7,
     "max_tokens": 2048,
     "personality": "jarvis",
