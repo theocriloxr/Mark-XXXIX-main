@@ -38,6 +38,16 @@ from core.agent_engine import get_jarvis_agent, execute_agent_command
 # Import window tracker for Omnipresent Context Awareness
 from core.context_tracker import start_window_tracker, get_window_tracker
 
+# Import Mark LXXX Omnipresence Engine components
+try:
+    from core.omni_engine import get_omni_engine
+    from core.mem_u import get_mem_u
+    from core.data_siphon import get_data_siphon
+    OMNI_ENGINE_AVAILABLE = True
+except ImportError:
+    OMNI_ENGINE_AVAILABLE = False
+    print("[MAIN] Omni Engine not available - run pip install for dependencies")
+
 # Import bridge schemas for strict LLM tool calling
 from actions.tool_schemas import (
     UJO_NETWORK_SCHEMA,
